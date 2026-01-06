@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PanImages } from './type';
 import { compressImage, validateImageFile } from './utils';
+import { uploadPanCardImages } from '../../services/api/panCard';
 
 export const usePanPage = () => {
   const navigate = useNavigate();
@@ -210,36 +211,27 @@ export const usePanPage = () => {
     setError(null);
 
     try {
-      // Save images to src/assets/pan_cards/ folder via dev server API
-      const response = await fetch('/api/save-pan-card', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          sessionId,
-          frontImage: panImages.front,
-          backImage: panImages.back,
-        }),
+      // Upload images to backend
+      const response = await uploadPanCardImages({
+        sessionId,
+        frontImage: panImages.front,
+        backImage: panImages.back,
       });
 
-      const result = await response.json();
-
-      if (!response.ok || !result.success) {
-        throw new Error(result.error || 'Failed to save images');
+      if (response.success) {
+        // Store image paths in session storage for next step
+        sessionStorage.setItem('pan_images', JSON.stringify({
+          sessionId,
+          frontPath: response.data.frontImagePath,
+          backPath: response.data.backImagePath,
+        }));
+        navigate('/verification');
+      } else {
+        setError(response.message || 'Failed to upload PAN card images');
       }
-
-      // Store image paths in session storage for next step
-      sessionStorage.setItem('pan_images', JSON.stringify({
-        sessionId,
-        frontPath: result.frontPath,
-        backPath: result.backPath,
-      }));
-
-      navigate('/verification');
     } catch (err) {
-      console.error('Save error:', err);
-      setError('Failed to save PAN card images. Please try again.');
+      console.error('Upload error:', err);
+      setError(err instanceof Error ? err.message : 'Failed to upload PAN card images. Please try again.');
     } finally {
       setIsProcessing(false);
     }
