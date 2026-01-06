@@ -1,8 +1,9 @@
 import React from 'react';
 import { useLanding } from './hook';
+import PermissionsModal from './modal';
 
 const LandingPage = () => {
-  const { handleStartVerification } = useLanding();
+  const { handleStartVerification, showPermissionsModal, handleCloseModal, handleConfirmPermissions, isLoading } = useLanding();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-emerald-900 flex items-center justify-center relative overflow-hidden">
@@ -100,6 +101,14 @@ const LandingPage = () => {
           By proceeding, you agree to our Terms of Service and Privacy Policy
         </p>
       </div>
+
+      {/* Permissions Modal */}
+      <PermissionsModal
+        isOpen={showPermissionsModal}
+        onClose={handleCloseModal}
+        onConfirm={handleConfirmPermissions}
+        isLoading={isLoading}
+      />
     </div>
   );
 };
