@@ -85,7 +85,7 @@ export const useLanding = () => {
 
       if (response.success) {
         setShowPermissionsModal(false);
-        navigate('/verification');
+        navigate('/pan');
       } else {
         const shouldRetry = window.confirm('Failed to save session data. Click OK to retry or Cancel to close the tab.');
         if (!shouldRetry) {
