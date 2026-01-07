@@ -11,15 +11,14 @@ import {
 import { saveSessionMetadata } from '../../services/api/sessionMetadata';
 
 export const useLanding = () => {
-  const { sessionId } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
+  const { sessionId } = useParams<{ sessionId: string }>();
   const [showPermissionsModal, setShowPermissionsModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (sessionId) {
       localStorage.setItem('session_id', sessionId);
-      console.log('Session ID stored:', sessionId);
     } else {
       alert('No session found. Please use a valid verification link.');
     }
@@ -87,17 +86,10 @@ export const useLanding = () => {
         setShowPermissionsModal(false);
         navigate('/pan');
       } else {
-        const shouldRetry = window.confirm('Failed to save session data. Click OK to retry or Cancel to close the tab.');
-        if (!shouldRetry) {
-          window.close();
-        }
+        console.log(response);
       }
     } catch (error) {
-      console.error('Error collecting permissions:', error);
-      const shouldRetry = window.confirm('An error occurred. Click OK to retry or Cancel to close the tab.');
-      if (!shouldRetry) {
-        window.close();
-      }
+      console.log(error);
     } finally {
       setIsLoading(false);
     }

@@ -1,7 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PanImages } from './type';
-import { compressImage, validateImageFile } from './utils';
 import { uploadPanCardImages } from '../../services/api/panCard';
 import { useSessionRecording } from '../../services/sessionRecording/context';
 
@@ -169,18 +168,21 @@ export const usePanPage = () => {
       const file = event.target.files?.[0];
       if (!file || !activeSide) return;
 
-      const validation = validateImageFile(file);
-      if (!validation.valid) {
-        setError(validation.error || 'Invalid file');
-        return;
-      }
-
       setIsProcessing(true);
       setError(null);
 
       try {
-        const compressedImage = await compressImage(file);
-        setPanImages((prev) => ({ ...prev, [activeSide]: compressedImage }));
+        // Convert file directly to base64 
+        const imageData = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            resolve(event.target?.result as string);
+          };
+          reader.onerror = () => reject(new Error('Failed to read file'));
+          reader.readAsDataURL(file);
+        });
+        
+        setPanImages((prev) => ({ ...prev, [activeSide]: imageData }));
         setActiveSide(null);
       } catch (err) {
         setError('Failed to process image. Please try again.');
@@ -240,21 +242,13 @@ export const usePanPage = () => {
         frontImage: panImages.front,
         backImage: panImages.back,
       });
-
-      if (response.success) {
-        // Store image paths in session storage for next step
-        sessionStorage.setItem('pan_images', JSON.stringify({
-          sessionId,
-          frontPath: response.data.frontImagePath,
-          backPath: response.data.backImagePath,
-        }));
+      if(response.success){
         navigate('/otp');
       } else {
-        setError(response.message || 'Failed to upload PAN card images');
+        console.log(response);
       }
     } catch (err) {
       console.error('Upload error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to upload PAN card images. Please try again.');
     } finally {
       setIsProcessing(false);
     }

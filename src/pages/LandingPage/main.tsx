@@ -1,4 +1,3 @@
-import React from 'react';
 import { useLanding } from './hook';
 import PermissionsModal from './modal';
 
