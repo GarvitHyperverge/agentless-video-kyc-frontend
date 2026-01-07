@@ -225,7 +225,7 @@ export const usePanPage = () => {
           frontPath: response.data.frontImagePath,
           backPath: response.data.backImagePath,
         }));
-        navigate('/verification');
+        navigate('/otp');
       } else {
         setError(response.message || 'Failed to upload PAN card images');
       }
