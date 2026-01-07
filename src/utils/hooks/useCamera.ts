@@ -36,9 +36,6 @@ export const useCamera = (initialOptions?: CameraOptions): UseCameraReturn => {
       videoRef.current.onloadedmetadata = () => {
         setIsCameraReady(true);
       };
-      videoRef.current.play().catch(() => {
-        // Ignore play errors
-      });
     }
   });
 

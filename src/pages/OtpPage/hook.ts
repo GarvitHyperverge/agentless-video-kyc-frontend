@@ -1,12 +1,14 @@
 import { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { RecordingStatus } from './type';
 import { generateOtp, blobToBase64 } from './utils';
 import { uploadOtpVideo } from '../../services/api/otpVideo';
 import { useSessionValidation } from '../../utils/hooks/useSessionValidation';
 import { useCamera } from '../../utils/hooks/useCamera';
-import { useUpload } from '../../utils/hooks/useUpload';
 
 export const useOtpPage = () => {
+  const navigate = useNavigate();
+  
   // Shared hooks
   const { validateSession } = useSessionValidation();
   const {
@@ -23,8 +25,6 @@ export const useOtpPage = () => {
     height: { ideal: 720 },
     audio: true,
   });
-  
-  const { isProcessing, error: uploadError, setError: setUploadError, executeUpload } = useUpload();
 
   // Page-specific state
   const [otp, setOtp] = useState<string>('');
@@ -32,6 +32,8 @@ export const useOtpPage = () => {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [videoBlob, setVideoBlob] = useState<Blob | null>(null);
   const [recordingTime, setRecordingTime] = useState(0);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   // Refs for recording
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -163,39 +165,41 @@ export const useOtpPage = () => {
       return;
     }
 
+    const sessionId = validateSession();
+    if (!sessionId) {
+      setUploadError('Session not found. Please start the verification process again.');
+      return;
+    }
+
+    setIsProcessing(true);
+    setRecordingStatus('uploading');
+    setUploadError(null);
+
     try {
-      const sessionId = validateSession();
-      setRecordingStatus('uploading');
-      
       // Convert blob to base64 string for API upload
       const videoBase64 = await blobToBase64(videoBlob);
 
-      const result = await executeUpload({
-        uploadFunction: async (data) => {
-          const response = await uploadOtpVideo(data);
-          return {
-            success: response.success,
-            message: response.message,
-          };
-        },
-        uploadData: {
-          sessionId,
-          otp,
-          video: videoBase64,
-        },
-        successNavigateTo: '/selfie',
-        errorMessage: 'Failed to upload video',
-        onSuccess: () => {
-          stopCamera();
-        },
+      // Upload video with OTP and session ID to backend
+      const response = await uploadOtpVideo({
+        sessionId,
+        otp,
+        video: videoBase64,
       });
 
-      if (!result.success) {
+      if (response.success) {
+        // Release camera resources before navigating away
+        stopCamera();
+        navigate('/selfie');
+      } else {
+        setUploadError(response.message || 'Failed to upload video');
         setRecordingStatus('recorded');
       }
     } catch (err) {
-      setUploadError(err instanceof Error ? err.message : 'Please record a video reading the OTP');
+      console.error('Upload error:', err);
+      setUploadError(err instanceof Error ? err.message : 'Failed to upload video. Please try again.');
       setRecordingStatus('recorded');
+    } finally {
+      setIsProcessing(false);
     }
   };
 

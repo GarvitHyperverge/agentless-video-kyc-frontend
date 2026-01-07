@@ -1,13 +1,14 @@
 import { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { PanImages } from './type';
 import { uploadPanCardImages } from '../../services/api/panCard';
 import { useSessionRecording } from '../../services/sessionRecording/context';
 import { useSessionValidation } from '../../utils/hooks/useSessionValidation';
 import { useCamera } from '../../utils/hooks/useCamera';
-import { useUpload } from '../../utils/hooks/useUpload';
 import { capturePhotoFromVideo } from '../../utils/camera';
 
 export const usePanPage = () => {
+  const navigate = useNavigate();
   const { isRecording, startRecording } = useSessionRecording();
   const { validateSession } = useSessionValidation();
   
@@ -27,11 +28,11 @@ export const usePanPage = () => {
     audio: false,
   });
 
-  const { isProcessing, error: uploadError, setError: setUploadError, executeUpload } = useUpload();
-
   // Page-specific state
   const [panImages, setPanImages] = useState<PanImages>({ front: null, back: null }); 
   const [activeSide, setActiveSide] = useState<'front' | 'back' | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   // Refs
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -177,27 +178,33 @@ export const usePanPage = () => {
       return;
     }
 
-    try {
-      const sessionId = validateSession();
+    const sessionId = validateSession();
+    if (!sessionId) {
+      setUploadError('Session not found. Please start the verification process again.');
+      return;
+    }
 
-      await executeUpload({
-        uploadFunction: async (data) => {
-          const response = await uploadPanCardImages(data);
-          return {
-            success: response.success,
-            message: response.message,
-          };
-        },
-        uploadData: {
-          sessionId,
-          frontImage: panImages.front,
-          backImage: panImages.back,
-        },
-        successNavigateTo: '/otp',
-        errorMessage: 'Failed to upload images',
+    setIsProcessing(true);
+    setUploadError(null);
+
+    try {
+      // Upload images to backend
+      const response = await uploadPanCardImages({
+        sessionId,
+        frontImage: panImages.front,
+        backImage: panImages.back,
       });
+
+      if (response.success) {
+        navigate('/otp');
+      } else {
+        setUploadError(response.message || 'Failed to upload images');
+      }
     } catch (err) {
-      setUploadError(err instanceof Error ? err.message : 'Failed to upload images');
+      console.error('Upload error:', err);
+      setUploadError(err instanceof Error ? err.message : 'Failed to upload images. Please try again.');
+    } finally {
+      setIsProcessing(false);
     }
   };
 
