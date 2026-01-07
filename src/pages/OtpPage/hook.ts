@@ -14,7 +14,7 @@ export const useOtpPage = () => {
     videoRef,
     isCameraReady,
     error: cameraError,
-    startCamera: startCameraHook,
+    startCamera,
     stopCamera,
     setError: setCameraError,
   } = useCamera({
@@ -22,7 +22,6 @@ export const useOtpPage = () => {
     width: { ideal: 1280 },
     height: { ideal: 720 },
     audio: true,
-    autoAttach: true,
   });
   
   const { isProcessing, error: uploadError, setError: setUploadError, executeUpload } = useUpload();
@@ -47,7 +46,7 @@ export const useOtpPage = () => {
     try {
       validateSession();
       setOtp(generateOtp());
-      startCameraHook();
+      startCamera();
     } catch {
       // Session validation hook handles navigation
     }
@@ -60,19 +59,6 @@ export const useOtpPage = () => {
       }
     };
   }, []);
-
-  /**
-   * Start camera with audio for OTP recording
-   */
-  const startCamera = async () => {
-    await startCameraHook({
-      facingMode: 'user',
-      width: { ideal: 1280 },
-      height: { ideal: 720 },
-      audio: true,
-      autoAttach: true,
-    });
-  };
 
   /**
    * Start recording video and audio from the camera stream

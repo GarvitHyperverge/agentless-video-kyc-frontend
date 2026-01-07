@@ -17,7 +17,7 @@ export const usePanPage = () => {
     isCameraReady,
     isCameraOpen,
     error: cameraError,
-    startCamera: startCameraHook,
+    startCamera,
     stopCamera,
     setError: setCameraError,
   } = useCamera({
@@ -25,7 +25,6 @@ export const usePanPage = () => {
     width: { ideal: 1920 },
     height: { ideal: 1080 },
     audio: false,
-    autoAttach: false, // Manual attachment via useEffect
   });
 
   const { isProcessing, error: uploadError, setError: setUploadError, executeUpload } = useUpload();
@@ -72,70 +71,23 @@ export const usePanPage = () => {
   /**
    * Request access to back camera (environment) for document capture
    */
-  const startCamera = async () => {
-    await startCameraHook({
+  const startCameraForCapture = async () => {
+    await startCamera({
       facingMode: 'environment',
       width: { ideal: 1920 },
       height: { ideal: 1080 },
       audio: false,
-      autoAttach: false,
     });
   };
 
   /**
-   * Capture photo from video stream, cropping to guide frame area
-   * Uses shared utility function for photo capture
+   * Capture full photo from video stream
    */
   const capturePhoto = () => {
     if (!videoRef.current || !activeSide) return;
 
-    const video = videoRef.current;
-    const displayWidth = video.clientWidth;
-    const displayHeight = video.clientHeight;
-
-    // Guide frame dimensions on screen (90% width, max 448px, aspect ratio 1.6)
-    const guideAspectRatio = 1.6;
-    const guideWidthOnScreen = Math.min(displayWidth * 0.9, 448);
-    const guideHeightOnScreen = guideWidthOnScreen / guideAspectRatio;
-    
-    // Guide frame position on screen (centered)
-    const guideXOnScreen = (displayWidth - guideWidthOnScreen) / 2;
-    const guideYOnScreen = (displayHeight - guideHeightOnScreen) / 2;
-
-    // Calculate scale for coordinate conversion (same logic as utility)
-    const videoNaturalWidth = video.videoWidth;
-    const videoNaturalHeight = video.videoHeight;
-    const videoAspect = videoNaturalWidth / videoNaturalHeight;
-    const displayAspect = displayWidth / displayHeight;
-    
-    let scale: number;
-    let offsetX = 0;
-    let offsetY = 0;
-    
-    if (videoAspect > displayAspect) {
-      scale = videoNaturalHeight / displayHeight;
-      offsetX = (videoNaturalWidth - displayWidth * scale) / 2;
-    } else {
-      scale = videoNaturalWidth / displayWidth;
-      offsetY = (videoNaturalHeight - displayHeight * scale) / 2;
-    }
-
-    // Convert screen coordinates to video coordinates
-    const cropX = offsetX + guideXOnScreen * scale;
-    const cropY = offsetY + guideYOnScreen * scale;
-    const cropWidth = guideWidthOnScreen * scale;
-    const cropHeight = guideHeightOnScreen * scale;
-
-    // Use utility function to capture photo
-    const imageData = capturePhotoFromVideo(video, {
-      cropX,
-      cropY,
-      cropWidth,
-      cropHeight,
-      outputWidth: Math.min(cropWidth, 1200),
-      outputHeight: Math.min(cropWidth, 1200) / guideAspectRatio,
-      quality: 0.9,
-    });
+    // Capture full video frame
+    const imageData = capturePhotoFromVideo(videoRef.current);
 
     // Save image for the active side and close camera
     setPanImages((prev) => ({ ...prev, [activeSide]: imageData }));
@@ -192,7 +144,7 @@ export const usePanPage = () => {
    */
   const selectUploadMode = (mode: 'camera' | 'file') => {
     if (mode === 'camera') {
-      startCamera();
+      startCameraForCapture();
     } else if (mode === 'file') {
       fileInputRef.current?.click(); // Trigger hidden file input
     }

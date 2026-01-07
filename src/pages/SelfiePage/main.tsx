@@ -246,21 +246,6 @@ const SelfiePage: React.FC = () => {
               </div>
             )}
 
-            {/* Face guide overlay */}
-            {isCameraReady && (
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div 
-                  id="selfie-guide"
-                  className="border-2 border-white/50 rounded-[50%] relative"
-                  style={{ width: '70%', maxWidth: '400px', aspectRatio: '3/4' }}
-                >
-                  <div className="absolute -top-8 left-1/2 -translate-x-1/2 text-white text-sm bg-black/50 px-4 py-1 rounded-full whitespace-nowrap">
-                    Position your face in the oval
-                  </div>
-                </div>
-              </div>
-            )}
-
             {/* Close button */}
             <button
               onClick={closeCamera}
