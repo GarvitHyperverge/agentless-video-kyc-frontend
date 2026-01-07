@@ -202,7 +202,7 @@ export const useSelfiePage = () => {
           sessionId,
           imagePath: response.data.imagePath,
         }));
-        navigate('/verification');
+        navigate('/thank-you');
       } else {
         setError(response.message || 'Failed to upload selfie');
       }

@@ -3,6 +3,7 @@ import LandingPage from './pages/LandingPage/main';
 import PanPage from './pages/PanPage/main';
 import OtpPage from './pages/OtpPage/main';
 import SelfiePage from './pages/SelfiePage/main';
+import ThankYouPage from './pages/ThankYouPage/main';
 
 function App() {
   return (
@@ -12,6 +13,7 @@ function App() {
         <Route path="/pan" element={<PanPage />} />
         <Route path="/otp" element={<OtpPage />} />
         <Route path="/selfie" element={<SelfiePage />} />
+        <Route path="/thank-you" element={<ThankYouPage />} />
       </Routes>
     </BrowserRouter>
   );
