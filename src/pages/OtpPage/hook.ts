@@ -203,7 +203,7 @@ export const useOtpPage = () => {
 
         // Stop camera before navigating
         stopCamera();
-        navigate('/verification');
+        navigate('/selfie');
       } else {
         setError(response.message || 'Failed to upload video');
         setRecordingStatus('recorded');
