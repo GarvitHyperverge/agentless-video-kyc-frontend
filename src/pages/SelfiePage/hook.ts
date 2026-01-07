@@ -1,96 +1,49 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import { SelfieImage } from './type';
 import { uploadSelfie } from '../../services/api/selfie';
+import { useSessionValidation } from '../../utils/hooks/useSessionValidation';
+import { useCamera } from '../../utils/hooks/useCamera';
+import { useUpload } from '../../utils/hooks/useUpload';
+import { capturePhotoFromVideo } from '../../utils/camera';
 
 export const useSelfiePage = () => {
-  const navigate = useNavigate();
+  const { validateSession } = useSessionValidation();
+  
+  // Camera hook with front camera for selfie
+  const {
+    videoRef,
+    isCameraReady,
+    isCameraOpen,
+    error: cameraError,
+    startCamera: startCameraHook,
+    stopCamera,
+    setError: setCameraError,
+  } = useCamera({
+    facingMode: 'user',
+    width: { ideal: 1280 },
+    height: { ideal: 720 },
+    audio: false,
+    autoAttach: false, // Manual attachment via useEffect
+  });
+
+  const { isProcessing, error: uploadError, setError: setUploadError, executeUpload } = useUpload();
+
+  // Page-specific state
   const [selfieImage, setSelfieImage] = useState<SelfieImage>({ image: null });
-  const [isCameraOpen, setIsCameraOpen] = useState(false);
-  const [isCameraReady, setIsCameraReady] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
+  // Combined error state
+  const error = cameraError || uploadError;
 
-  // Check if session exists
-  useEffect(() => {
-    const sessionId = localStorage.getItem('session_id');
-    if (!sessionId) {
-      alert('Session not found. Please start the verification process again.');
-      navigate('/');
-    }
-  }, [navigate]);
-
-  // Initialize video stream when camera opens
-  useEffect(() => {
-    if (isCameraOpen && streamRef.current) {
-      setIsCameraReady(false);
-      const initVideo = () => {
-        if (videoRef.current) {
-          videoRef.current.srcObject = streamRef.current;
-          videoRef.current.onloadedmetadata = () => {
-            setIsCameraReady(true);
-          };
-          videoRef.current.play().catch(console.error);
-        } else {
-          requestAnimationFrame(initVideo);
-        }
-      };
-      requestAnimationFrame(initVideo);
-    }
-  }, [isCameraOpen]);
-
-  const startCamera = useCallback(async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
-      });
-      streamRef.current = stream;
-      setIsCameraOpen(true);
-      setError(null);
-    } catch (err) {
-      setError('Unable to access camera. Please ensure camera permissions are granted.');
-      console.error('Camera error:', err);
-    }
-  }, []);
-
-  const stopCamera = useCallback(() => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    }
-    setIsCameraOpen(false);
-    setIsCameraReady(false);
-  }, []);
-
-  const capturePhoto = useCallback(() => {
+  /**
+   * Capture photo from video stream, cropping to guide frame area
+   * Uses shared utility function for photo capture
+   */
+  const capturePhoto = () => {
     if (!videoRef.current) return;
 
     const video = videoRef.current;
-    const videoNaturalWidth = video.videoWidth;
-    const videoNaturalHeight = video.videoHeight;
     const displayWidth = video.clientWidth;
     const displayHeight = video.clientHeight;
-
-    // Calculate scale and offset for object-cover
-    let scale: number;
-    let offsetX = 0;
-    let offsetY = 0;
-
-    const videoAspect = videoNaturalWidth / videoNaturalHeight;
-    const displayAspect = displayWidth / displayHeight;
-
-    if (videoAspect > displayAspect) {
-      // Video is wider - crop sides
-      scale = videoNaturalHeight / displayHeight;
-      offsetX = (videoNaturalWidth - displayWidth * scale) / 2;
-    } else {
-      // Video is taller - crop top/bottom
-      scale = videoNaturalWidth / displayWidth;
-      offsetY = (videoNaturalHeight - displayHeight * scale) / 2;
-    }
 
     // Get actual guide element dimensions from DOM
     const guideElement = document.getElementById('selfie-guide');
@@ -106,6 +59,24 @@ export const useSelfiePage = () => {
     const guideXOnScreen = (displayWidth - guideWidthOnScreen) / 2;
     const guideYOnScreen = (displayHeight - guideHeightOnScreen) / 2;
 
+    // Calculate scale for coordinate conversion
+    const videoNaturalWidth = video.videoWidth;
+    const videoNaturalHeight = video.videoHeight;
+    const videoAspect = videoNaturalWidth / videoNaturalHeight;
+    const displayAspect = displayWidth / displayHeight;
+
+    let scale: number;
+    let offsetX = 0;
+    let offsetY = 0;
+
+    if (videoAspect > displayAspect) {
+      scale = videoNaturalHeight / displayHeight;
+      offsetX = (videoNaturalWidth - displayWidth * scale) / 2;
+    } else {
+      scale = videoNaturalWidth / displayWidth;
+      offsetY = (videoNaturalHeight - displayHeight * scale) / 2;
+    }
+
     // Map screen coordinates to video coordinates
     const cropX = offsetX + guideXOnScreen * scale;
     const cropY = offsetY + guideYOnScreen * scale;
@@ -116,101 +87,98 @@ export const useSelfiePage = () => {
     const outputWidth = Math.min(cropWidth, 800);
     const outputHeight = outputWidth * (guideHeightOnScreen / guideWidthOnScreen);
 
-    const canvas = document.createElement('canvas');
-    canvas.width = outputWidth;
-    canvas.height = outputHeight;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    ctx.drawImage(
-      video,
-      cropX, cropY, cropWidth, cropHeight,
-      0, 0, outputWidth, outputHeight
-    );
-
-    const imageData = canvas.toDataURL('image/jpeg', 0.9);
+    // Use utility function to capture photo
+    const imageData = capturePhotoFromVideo(video, {
+      cropX,
+      cropY,
+      cropWidth,
+      cropHeight,
+      outputWidth,
+      outputHeight,
+      quality: 0.9,
+    });
 
     setSelfieImage({ image: imageData });
     stopCamera();
-  }, [stopCamera]);
-
-  const openCamera = () => {
-    setError(null);
-    startCamera();
   };
 
+  /**
+   * Open camera for selfie capture
+   */
+  const openCamera = () => {
+    setUploadError(null);
+    setCameraError(null);
+    startCameraHook({
+      facingMode: 'user',
+      width: { ideal: 1280 },
+      height: { ideal: 720 },
+      audio: false,
+      autoAttach: false,
+    });
+  };
+
+  /**
+   * Close camera
+   */
   const closeCamera = () => {
     stopCamera();
-    setError(null);
+    setUploadError(null);
+    setCameraError(null);
   };
 
+  /**
+   * Remove captured selfie image
+   */
   const removeImage = () => {
     setSelfieImage({ image: null });
   };
 
+  /**
+   * Retake photo - reset image and restart camera
+   */
   const retakePhoto = async () => {
     setSelfieImage({ image: null });
-    setError(null);
-    
-    // Start fresh camera
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
-      });
-      streamRef.current = stream;
-      setIsCameraOpen(true);
-      
-      requestAnimationFrame(() => {
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          videoRef.current.onloadedmetadata = () => {
-            setIsCameraReady(true);
-          };
-          videoRef.current.play().catch(console.error);
-        }
-      });
-    } catch (err) {
-      setError('Unable to access camera. Please try again.');
-      console.error('Camera error:', err);
-    }
+    setUploadError(null);
+    setCameraError(null);
+    await openCamera();
   };
 
+  /**
+   * Upload selfie to backend and navigate to thank you page
+   */
   const handleContinue = async () => {
     if (!selfieImage.image) {
-      setError('Please capture or upload a selfie');
+      setUploadError('Please capture or upload a selfie');
       return;
     }
-
-    const sessionId = localStorage.getItem('session_id');
-    if (!sessionId) {
-      setError('Session not found. Please start the verification process again.');
-      return;
-    }
-
-    setIsProcessing(true);
-    setError(null);
 
     try {
-      const response = await uploadSelfie({
-        sessionId,
-        image: selfieImage.image,
-      });
+      const sessionId = validateSession();
 
-      if (response.success) {
-        sessionStorage.setItem('selfie_image', JSON.stringify({
+      await executeUpload({
+        uploadFunction: async (data) => {
+          const response = await uploadSelfie(data);
+          return {
+            success: response.success,
+            message: response.message,
+          };
+        },
+        uploadData: {
           sessionId,
-          imagePath: response.data.imagePath,
-        }));
-        navigate('/thank-you');
-      } else {
-        setError(response.message || 'Failed to upload selfie');
-      }
+          image: selfieImage.image,
+        },
+        successNavigateTo: '/thank-you',
+        errorMessage: 'Failed to upload selfie',
+        onSuccess: () => {
+          // Store in sessionStorage if needed
+          sessionStorage.setItem('selfie_image', JSON.stringify({
+            sessionId,
+            imagePath: '', // Will be set by backend response
+          }));
+        },
+      });
     } catch (err) {
-      console.error('Upload error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to upload selfie. Please try again.');
-    } finally {
-      setIsProcessing(false);
+      setUploadError(err instanceof Error ? err.message : 'Failed to upload selfie');
     }
   };
 

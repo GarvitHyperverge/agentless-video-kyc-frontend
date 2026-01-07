@@ -148,14 +148,6 @@ const ThankYouPage: React.FC = () => {
               </li>
             </ul>
           </div>
-
-          {/* Close button */}
-          <button
-            onClick={() => window.close()}
-            className="w-full py-4 px-8 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold text-lg rounded-xl shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
-          >
-            Done
-          </button>
         </div>
 
         {/* Footer text */}

@@ -1,41 +1,58 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useRef, useEffect } from 'react';
 import { RecordingStatus } from './type';
 import { generateOtp, blobToBase64 } from './utils';
 import { uploadOtpVideo } from '../../services/api/otpVideo';
+import { useSessionValidation } from '../../utils/hooks/useSessionValidation';
+import { useCamera } from '../../utils/hooks/useCamera';
+import { useUpload } from '../../utils/hooks/useUpload';
 
 export const useOtpPage = () => {
-  const navigate = useNavigate();
+  // Shared hooks
+  const { validateSession } = useSessionValidation();
+  const {
+    streamRef,
+    videoRef,
+    isCameraReady,
+    error: cameraError,
+    startCamera: startCameraHook,
+    stopCamera,
+    setError: setCameraError,
+  } = useCamera({
+    facingMode: 'user',
+    width: { ideal: 1280 },
+    height: { ideal: 720 },
+    audio: true,
+    autoAttach: true,
+  });
+  
+  const { isProcessing, error: uploadError, setError: setUploadError, executeUpload } = useUpload();
+
+  // Page-specific state
   const [otp, setOtp] = useState<string>('');
-  const [recordingStatus, setRecordingStatus] = useState<RecordingStatus>('idle');
+  const [recordingStatus, setRecordingStatus] = useState<RecordingStatus>('idle'); 
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [videoBlob, setVideoBlob] = useState<Blob | null>(null);
   const [recordingTime, setRecordingTime] = useState(0);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [isCameraReady, setIsCameraReady] = useState(false);
 
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const previewVideoRef = useRef<HTMLVideoElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
+  // Refs for recording
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Generate OTP and check session on mount
-  useEffect(() => {
-    const sessionId = localStorage.getItem('session_id');
-    if (!sessionId) {
-      alert('Session not found. Please start the verification process again.');
-      navigate('/');
-      return;
-    }
-    setOtp(generateOtp());
-  }, [navigate]);
+  // Combined error state
+  const error = cameraError || uploadError;
 
-  // Start camera on mount
+  // Initialize OTP, validate session, and start camera on component mount
   useEffect(() => {
-    startCamera();
+    try {
+      validateSession();
+      setOtp(generateOtp());
+      startCameraHook();
+    } catch {
+      // Session validation hook handles navigation
+    }
+
+    // Cleanup function
     return () => {
       stopCamera();
       if (timerRef.current) {
@@ -44,51 +61,57 @@ export const useOtpPage = () => {
     };
   }, []);
 
-  const startCamera = useCallback(async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
-        audio: true,
-      });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.onloadedmetadata = () => {
-          setIsCameraReady(true);
-        };
-      }
-      setError(null);
-    } catch (err) {
-      setError('Unable to access camera and microphone. Please ensure permissions are granted.');
-      console.error('Camera error:', err);
-    }
-  }, []);
+  /**
+   * Start camera with audio for OTP recording
+   */
+  const startCamera = async () => {
+    await startCameraHook({
+      facingMode: 'user',
+      width: { ideal: 1280 },
+      height: { ideal: 720 },
+      audio: true,
+      autoAttach: true,
+    });
+  };
 
-  const stopCamera = useCallback(() => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    }
-    setIsCameraReady(false);
-  }, []);
-
-  const startRecording = useCallback(() => {
+  /**
+   * Start recording video and audio from the camera stream
+   * Collects chunks of video data and creates a blob when stopped
+   */
+  const startRecording = () => {
     if (!streamRef.current) {
-      setError('Camera not available. Please refresh and try again.');
+      setCameraError('Camera not available. Please refresh and try again.');
       return;
     }
 
+    // Reset chunks array for new recording
     chunksRef.current = [];
+    
+    // Create MediaRecorder with WebM format 
     const mediaRecorder = new MediaRecorder(streamRef.current, {
       mimeType: 'video/webm;codecs=vp9,opus',
     });
 
+    // Collect video chunks as they become available
     mediaRecorder.ondataavailable = (event) => {
       if (event.data.size > 0) {
         chunksRef.current.push(event.data);
       }
     };
 
+
+    // Store recorder reference and start recording
+    mediaRecorderRef.current = mediaRecorder;
+    mediaRecorder.start();
+    setRecordingStatus('recording');
+    setRecordingTime(0);
+
+    // Start timer to track recording duration
+    timerRef.current = setInterval(() => {
+      setRecordingTime((prev) => prev + 1);
+    }, 1000);
+
+    // When recording stops, create blob and preview URL
     mediaRecorder.onstop = () => {
       const blob = new Blob(chunksRef.current, { type: 'video/webm' });
       const url = URL.createObjectURL(blob);
@@ -96,127 +119,101 @@ export const useOtpPage = () => {
       setVideoUrl(url);
       setRecordingStatus('recorded');
     };
+  };
 
-    mediaRecorderRef.current = mediaRecorder;
-    mediaRecorder.start(100); // Collect data every 100ms
-    setRecordingStatus('recording');
-    setRecordingTime(0);
-
-    // Start timer
-    timerRef.current = setInterval(() => {
-      setRecordingTime((prev) => prev + 1);
-    }, 1000);
-  }, []);
-
-  const stopRecording = useCallback(() => {
+  /**
+   * Stop the active recording
+   * Triggers onstop handler which creates the video blob
+   */
+  const stopRecording = () => {
     if (mediaRecorderRef.current && recordingStatus === 'recording') {
-      mediaRecorderRef.current.stop();
+      mediaRecorderRef.current.stop(); // This triggers the onstop handler
+      
+      // Clear the recording timer
       if (timerRef.current) {
         clearInterval(timerRef.current);
         timerRef.current = null;
       }
     }
-  }, [recordingStatus]);
+  };
 
-  const retakeVideo = useCallback(async () => {
-    // Clean up old video URL
+  /**
+   * Reset recording state and restart camera for a new recording
+   * Cleans up previous video blob and URL to prevent memory leaks
+   */
+  const retakeVideo = async () => {
+    // Revoke object URL to free memory
     if (videoUrl) {
       URL.revokeObjectURL(videoUrl);
     }
     setVideoBlob(null);
     setVideoUrl(null);
     setRecordingTime(0);
-    setError(null);
-
-    // Always restart camera to ensure fresh connection
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    }
-    
-    setIsCameraReady(false);
+    setUploadError(null);
+    setCameraError(null);
     setRecordingStatus('idle');
-    
-    // Start fresh camera
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
-        audio: true,
-      });
-      streamRef.current = stream;
-      
-      // Wait for next frame to ensure video element is in DOM
-      requestAnimationFrame(() => {
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          videoRef.current.onloadedmetadata = () => {
-            setIsCameraReady(true);
-          };
-          videoRef.current.play().catch(console.error);
-        }
-      });
-    } catch (err) {
-      setError('Unable to restart camera. Please refresh and try again.');
-      console.error('Camera restart error:', err);
-    }
-  }, [videoUrl]);
 
-  const regenerateOtp = useCallback(async () => {
+    // Restart camera using existing helper functions
+    stopCamera();
+    await startCamera();
+  };
+
+  /**
+   * Generate a new OTP code and reset video recording
+   * Called when user clicks "Generate New OTP" button
+   */
+  const regenerateOtp = async () => {
     setOtp(generateOtp());
     await retakeVideo();
-  }, [retakeVideo]);
+  };
 
+  /**
+   * Upload recorded video to backend and navigate to next step
+   * Converts video blob to base64 format before uploading
+   */
   const handleContinue = async () => {
     if (!videoBlob) {
-      setError('Please record a video reading the OTP');
+      setUploadError('Please record a video reading the OTP');
       return;
     }
-
-    const sessionId = localStorage.getItem('session_id');
-    if (!sessionId) {
-      setError('Session not found. Please start the verification process again.');
-      return;
-    }
-
-    setIsProcessing(true);
-    setRecordingStatus('uploading');
-    setError(null);
 
     try {
-      // Convert video blob to base64
+      const sessionId = validateSession();
+      setRecordingStatus('uploading');
+      
+      // Convert blob to base64 string for API upload
       const videoBase64 = await blobToBase64(videoBlob);
 
-      // Upload to backend
-      const response = await uploadOtpVideo({
-        sessionId,
-        otp,
-        video: videoBase64,
-      });
-
-      if (response.success) {
-        // Store video path in session storage
-        sessionStorage.setItem('otp_video', JSON.stringify({
+      const result = await executeUpload({
+        uploadFunction: async (data) => {
+          const response = await uploadOtpVideo(data);
+          return {
+            success: response.success,
+            message: response.message,
+          };
+        },
+        uploadData: {
           sessionId,
           otp,
-          videoPath: response.data.videoPath,
-        }));
+          video: videoBase64,
+        },
+        successNavigateTo: '/selfie',
+        errorMessage: 'Failed to upload video',
+        onSuccess: () => {
+          stopCamera();
+        },
+      });
 
-        // Stop camera before navigating
-        stopCamera();
-        navigate('/selfie');
-      } else {
-        setError(response.message || 'Failed to upload video');
+      if (!result.success) {
         setRecordingStatus('recorded');
       }
     } catch (err) {
-      console.error('Upload error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to upload video. Please try again.');
+      setUploadError(err instanceof Error ? err.message : 'Please record a video reading the OTP');
       setRecordingStatus('recorded');
-    } finally {
-      setIsProcessing(false);
     }
   };
 
+  // Determine if continue button should be enabled
   const canContinue = recordingStatus === 'recorded' && videoBlob !== null;
 
   return {
@@ -228,7 +225,6 @@ export const useOtpPage = () => {
     error,
     isCameraReady,
     videoRef,
-    previewVideoRef,
     startRecording,
     stopRecording,
     retakeVideo,

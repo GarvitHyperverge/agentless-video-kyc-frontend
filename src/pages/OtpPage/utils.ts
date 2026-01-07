@@ -6,15 +6,6 @@ export const generateOtp = (): string => {
 };
 
 /**
- * Formats seconds into MM:SS format
- */
-export const formatTime = (seconds: number): string => {
-  const mins = Math.floor(seconds / 60);
-  const secs = seconds % 60;
-  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-};
-
-/**
  * Converts blob to base64 string
  */
 export const blobToBase64 = (blob: Blob): Promise<string> => {

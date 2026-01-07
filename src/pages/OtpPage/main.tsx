@@ -1,6 +1,5 @@
 import React from 'react';
 import { useOtpPage } from './hook';
-import { formatTime } from './utils';
 
 const OtpPage: React.FC = () => {
   const {
@@ -12,7 +11,6 @@ const OtpPage: React.FC = () => {
     error,
     isCameraReady,
     videoRef,
-    previewVideoRef,
     startRecording,
     stopRecording,
     retakeVideo,
@@ -148,7 +146,9 @@ const OtpPage: React.FC = () => {
                   {recordingStatus === 'recording' && (
                     <div className="absolute top-4 left-4 flex items-center gap-2 bg-red-600 px-3 py-1.5 rounded-full">
                       <span className="w-3 h-3 bg-white rounded-full animate-pulse" />
-                      <span className="text-white text-sm font-medium">{formatTime(recordingTime)}</span>
+                      <span className="text-white text-sm font-medium">
+                        {Math.floor(recordingTime / 60).toString().padStart(2, '0')}:{(recordingTime % 60).toString().padStart(2, '0')}
+                      </span>
                     </div>
                   )}
                 </>
@@ -157,7 +157,6 @@ const OtpPage: React.FC = () => {
               {/* Recorded video preview */}
               {(recordingStatus === 'recorded' || recordingStatus === 'uploading') && videoUrl && (
                 <video
-                  ref={previewVideoRef}
                   src={videoUrl}
                   controls
                   autoPlay
