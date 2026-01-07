@@ -1,7 +1,30 @@
 import React, { useEffect, useState } from 'react';
+import { useSessionRecording } from '../../services/sessionRecording/context';
 
 const ThankYouPage: React.FC = () => {
   const [showConfetti, setShowConfetti] = useState(true);
+  const { stopRecording, downloadRecording } = useSessionRecording();
+
+  // Stop recording and download when page loads
+  useEffect(() => {
+    const handleRecording = async () => {
+      try {
+        await stopRecording();
+        console.log('Session recording stopped');
+        
+        // Download the recording
+        setTimeout(async () => {
+          await downloadRecording();
+        }, 300);
+      } catch (err) {
+        console.error('Error handling session recording:', err);
+      }
+    };
+    
+    // Small delay to ensure page is fully loaded
+    const timer = setTimeout(handleRecording, 500);
+    return () => clearTimeout(timer);
+  }, [stopRecording, downloadRecording]);
 
   useEffect(() => {
     // Hide confetti after animation

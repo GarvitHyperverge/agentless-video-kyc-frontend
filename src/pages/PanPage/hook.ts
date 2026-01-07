@@ -3,9 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { PanImages } from './type';
 import { compressImage, validateImageFile } from './utils';
 import { uploadPanCardImages } from '../../services/api/panCard';
+import { useSessionRecording } from '../../services/sessionRecording/context';
 
 export const usePanPage = () => {
   const navigate = useNavigate();
+  const { isRecording, startRecording } = useSessionRecording();
   const [panImages, setPanImages] = useState<PanImages>({ front: null, back: null });
   const [activeSide, setActiveSide] = useState<'front' | 'back' | null>(null);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
@@ -16,15 +18,36 @@ export const usePanPage = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const sessionRecordingStartedRef = useRef(false);
 
-  // Check if session exists
+  // Check if session exists and start session recording
   useEffect(() => {
     const sessionId = localStorage.getItem('session_id');
     if (!sessionId) {
       alert('Session not found. Please start the verification process again.');
       navigate('/');
+      return;
     }
-  }, [navigate]);
+
+    // Start session recording immediately when page loads
+    const startSessionRecording = async () => {
+      if (!sessionRecordingStartedRef.current && !isRecording) {
+        try {
+          const recordingStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
+            audio: true,
+          });
+          startRecording(recordingStream);
+          sessionRecordingStartedRef.current = true;
+          console.log('Session recording started on page load');
+        } catch (err) {
+          console.warn('Could not start session recording:', err);
+        }
+      }
+    };
+
+    startSessionRecording();
+  }, [navigate, isRecording, startRecording]);
 
   // Initialize video stream when camera opens and video element is ready
   useEffect(() => {

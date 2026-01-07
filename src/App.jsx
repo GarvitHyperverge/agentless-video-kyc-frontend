@@ -4,10 +4,12 @@ import PanPage from './pages/PanPage/main';
 import OtpPage from './pages/OtpPage/main';
 import SelfiePage from './pages/SelfiePage/main';
 import ThankYouPage from './pages/ThankYouPage/main';
+import RecordingIndicator from './components/RecordingIndicator';
 
 function App() {
   return (
     <BrowserRouter>
+      <RecordingIndicator />
       <Routes>
         <Route path="/:sessionId" element={<LandingPage />} />
         <Route path="/pan" element={<PanPage />} />
