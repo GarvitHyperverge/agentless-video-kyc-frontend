@@ -47,9 +47,10 @@ export const usePanPage = () => {
       validateSession();
     } catch {
       // Session validation hook handles navigation
+      console.log('Session validation error');
     }
 
-    // Start session recording immediately when page loads for audit trail
+    // Start session recording immediately when page loads for audit purposes
     const startSessionRecording = async () => {
       if (!sessionRecordingStartedRef.current && !isRecording) {
         try {

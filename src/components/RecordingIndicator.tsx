@@ -7,25 +7,21 @@ const RecordingIndicator: React.FC = () => {
 
   useEffect(() => {
     if (videoRef.current && recordingStream) {
-      // Only set if it's different
       if (videoRef.current.srcObject !== recordingStream) {
         videoRef.current.srcObject = recordingStream;
       }
       
-      // Ensure video plays
+      // Ensure video plays automatically
       if (videoRef.current.paused) {
         videoRef.current.play().catch((err) => {
           console.error('Error playing recording preview:', err);
         });
       }
+    } else if (videoRef.current && !recordingStream) {
+      // Clear video element when stream is removed
+      videoRef.current.srcObject = null;
+      videoRef.current.pause();
     }
-
-    // Don't clear srcObject on cleanup - keep the stream active
-    // Only clear when component unmounts completely
-    return () => {
-      // Only clear if we're actually unmounting and not just re-rendering
-      // This cleanup will run on unmount, but we want to keep the stream active
-    };
   }, [recordingStream]);
 
   // Show if recording OR if we have a stream (even if recording state hasn't updated yet)

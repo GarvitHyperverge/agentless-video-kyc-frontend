@@ -1,34 +1,16 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useSessionRecording } from '../../services/sessionRecording/context';
 import { completeVerificationSession } from '../../services/api/verificationSessions';
 
 const ThankYouPage: React.FC = () => {
-  const [showConfetti, setShowConfetti] = useState(true);
-  const { stopRecording, downloadRecording } = useSessionRecording();
+  const { downloadRecording } = useSessionRecording();
+  const hasCompletedRef = useRef(false);
 
-  // Stop recording and download when page loads
+  // Complete verification session and download recording when page loads
   useEffect(() => {
-    const handleRecording = async () => {
-      try {
-        await stopRecording();
-        console.log('Session recording stopped');
-        
-        // Download the recording
-        setTimeout(async () => {
-          await downloadRecording();
-        }, 300);
-      } catch (err) {
-        console.error('Error handling session recording:', err);
-      }
-    };
-    
-    // Small delay to ensure page is fully loaded
-    const timer = setTimeout(handleRecording, 500);
-    return () => clearTimeout(timer);
-  }, [stopRecording, downloadRecording]);
+    // Prevent multiple calls
+    if (hasCompletedRef.current) return;
 
-  // Complete verification session when page loads
-  useEffect(() => {
     const handleCompleteVerification = async () => {
       const sessionId = localStorage.getItem('session_id');
       
@@ -40,6 +22,9 @@ const ThankYouPage: React.FC = () => {
       try {
         await completeVerificationSession({ sessionId });
         console.log('Verification session completed successfully');
+        // Download recording only after verification completes successfully
+        await downloadRecording();
+        hasCompletedRef.current = true;
       } catch (err) {
         console.error('Error completing verification session:', err);
       }
@@ -48,13 +33,7 @@ const ThankYouPage: React.FC = () => {
     // Call the API after a short delay to ensure page is loaded
     const timer = setTimeout(handleCompleteVerification, 1000);
     return () => clearTimeout(timer);
-  }, []);
-
-  useEffect(() => {
-    // Hide confetti after animation
-    const timer = setTimeout(() => setShowConfetti(false), 3000);
-    return () => clearTimeout(timer);
-  }, []);
+  }, []); // Only run once on mount
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-emerald-900 flex items-center justify-center relative overflow-hidden py-8 px-4">
@@ -64,27 +43,6 @@ const ThankYouPage: React.FC = () => {
         <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-teal-500/15 rounded-full blur-3xl animate-pulse delay-1000" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-emerald-600/10 rounded-full blur-3xl" />
       </div>
-
-      {/* Confetti animation */}
-      {showConfetti && (
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          {[...Array(50)].map((_, i) => (
-            <div
-              key={i}
-              className="absolute w-3 h-3 rounded-full animate-bounce"
-              style={{
-                left: `${Math.random() * 100}%`,
-                top: `-10%`,
-                backgroundColor: ['#10b981', '#14b8a6', '#06b6d4', '#8b5cf6', '#f59e0b', '#ef4444'][
-                  Math.floor(Math.random() * 6)
-                ],
-                animation: `fall ${2 + Math.random() * 2}s ease-in forwards`,
-                animationDelay: `${Math.random() * 1}s`,
-              }}
-            />
-          ))}
-        </div>
-      )}
 
       {/* Grid pattern overlay */}
       <div
@@ -182,16 +140,6 @@ const ThankYouPage: React.FC = () => {
 
       {/* CSS for animations */}
       <style>{`
-        @keyframes fall {
-          0% {
-            transform: translateY(0) rotate(0deg);
-            opacity: 1;
-          }
-          100% {
-            transform: translateY(100vh) rotate(720deg);
-            opacity: 0;
-          }
-        }
         @keyframes checkmark {
           0% {
             opacity: 0;
