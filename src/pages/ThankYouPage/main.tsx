@@ -3,10 +3,10 @@ import { useSessionRecording } from '../../services/sessionRecording/context';
 import { completeVerificationSession } from '../../services/api/verificationSessions';
 
 const ThankYouPage: React.FC = () => {
-  const { downloadRecording } = useSessionRecording();
+  const { uploadRecording } = useSessionRecording();
   const hasCompletedRef = useRef(false);
 
-  // Complete verification session and download recording when page loads
+  // Complete verification session and upload recording when page loads
   useEffect(() => {
     // Prevent multiple calls
     if (hasCompletedRef.current) return;
@@ -22,8 +22,8 @@ const ThankYouPage: React.FC = () => {
       try {
         await completeVerificationSession({ sessionId });
         console.log('Verification session completed successfully');
-        // Download recording only after verification completes successfully
-        await downloadRecording();
+        // Upload recording only after verification completes successfully
+        await uploadRecording();
         hasCompletedRef.current = true;
       } catch (err) {
         console.error('Error completing verification session:', err);
@@ -33,7 +33,7 @@ const ThankYouPage: React.FC = () => {
     // Call the API after a short delay to ensure page is loaded
     const timer = setTimeout(handleCompleteVerification, 1000);
     return () => clearTimeout(timer);
-  }, []); // Only run once on mount
+  }, [uploadRecording]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-emerald-900 flex items-center justify-center relative overflow-hidden py-8 px-4">

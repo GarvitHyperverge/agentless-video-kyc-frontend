@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useRef, useState, useCallback } from 'react';
+import { uploadSessionRecording } from '../api/sessionRecording';
 
 interface SessionRecordingContextType {
   isRecording: boolean;
@@ -6,6 +7,7 @@ interface SessionRecordingContextType {
   startRecording: (stream: MediaStream) => void;
   stopRecording: () => Promise<Blob | null>;
   downloadRecording: () => Promise<boolean>;
+  uploadRecording: () => Promise<boolean>;
 }
 
 const SessionRecordingContext = createContext<SessionRecordingContextType | null>(null);
@@ -85,7 +87,7 @@ export const SessionRecordingProvider: React.FC<{ children: React.ReactNode }> =
           // Small delay to ensure all chunks are collected
           setTimeout(() => {
             const finalChunks = [...chunksRef.current];
-            const blob = new Blob(finalChunks);
+            const blob = new Blob(finalChunks, { type: 'video/webm' });
             recordingBlobRef.current = blob;
             
             console.log('Session recording stopped, blob size:', blob.size, 'chunks:', finalChunks.length);
@@ -134,6 +136,38 @@ export const SessionRecordingProvider: React.FC<{ children: React.ReactNode }> =
     }
   }, [stopRecording]);
 
+  const uploadRecording = useCallback(async (): Promise<boolean> => {
+    const sessionId = localStorage.getItem('session_id');
+    if (!sessionId) {
+      console.error('No session ID found');
+      return false;
+    }
+
+    // Stop recording and get blob
+    const blob = await stopRecording();
+    
+    if (!blob || blob.size === 0) {
+      console.error('No recording data to upload');
+      return false;
+    }
+
+    try {
+      console.log(`Uploading session recording: ${(blob.size / 1024 / 1024).toFixed(2)}MB`);
+      const response = await uploadSessionRecording(sessionId, blob);
+      
+      if (response.success) {
+        console.log('Session recording uploaded successfully:', response.data.videoPath);
+        return true;
+      } else {
+        console.error('Upload failed:', response.message);
+        return false;
+      }
+    } catch (err) {
+      console.error('Error uploading session recording:', err);
+      return false;
+    }
+  }, [stopRecording]);
+
   return (
     <SessionRecordingContext.Provider
       value={{
@@ -142,6 +176,7 @@ export const SessionRecordingProvider: React.FC<{ children: React.ReactNode }> =
         startRecording,
         stopRecording,
         downloadRecording,
+        uploadRecording,
       }}
     >
       {children}
