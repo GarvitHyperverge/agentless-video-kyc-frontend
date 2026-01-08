@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useSessionRecording } from '../../services/sessionRecording/context';
+import { completeVerificationSession } from '../../services/api/verificationSessions';
 
 const ThankYouPage: React.FC = () => {
   const [showConfetti, setShowConfetti] = useState(true);
@@ -25,6 +26,29 @@ const ThankYouPage: React.FC = () => {
     const timer = setTimeout(handleRecording, 500);
     return () => clearTimeout(timer);
   }, [stopRecording, downloadRecording]);
+
+  // Complete verification session when page loads
+  useEffect(() => {
+    const handleCompleteVerification = async () => {
+      const sessionId = localStorage.getItem('session_id');
+      
+      if (!sessionId) {
+        console.error('No session ID found');
+        return;
+      }
+
+      try {
+        await completeVerificationSession({ sessionId });
+        console.log('Verification session completed successfully');
+      } catch (err) {
+        console.error('Error completing verification session:', err);
+      }
+    };
+
+    // Call the API after a short delay to ensure page is loaded
+    const timer = setTimeout(handleCompleteVerification, 1000);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     // Hide confetti after animation
