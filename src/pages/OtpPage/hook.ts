@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RecordingStatus } from './type';
-import { generateOtp, blobToBase64 } from './utils';
+import { generateOtp } from './utils';
 import { uploadOtpVideo } from '../../services/api/otpVideo';
 import { useSessionValidation } from '../../utils/hooks/useSessionValidation';
 import { useCamera } from '../../utils/hooks/useCamera';
@@ -176,15 +176,8 @@ export const useOtpPage = () => {
     setUploadError(null);
 
     try {
-      // Convert blob to base64 string for API upload
-      const videoBase64 = await blobToBase64(videoBlob);
-
-      // Upload video with OTP and session ID to backend
-      const response = await uploadOtpVideo({
-        sessionId,
-        otp,
-        video: videoBase64,
-      });
+      // Upload video with OTP and session ID to backend using FormData
+      const response = await uploadOtpVideo(sessionId, otp, videoBlob);
 
       if (response.success) {
         // Release camera resources before navigating away

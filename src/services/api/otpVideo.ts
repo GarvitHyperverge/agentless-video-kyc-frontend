@@ -1,11 +1,5 @@
 import { BACKEND_URL } from './config';
 
-interface OtpVideoUploadPayload {
-  sessionId: string;
-  otp: string;
-  video: string;
-}
-
 interface OtpVideoUploadResponse {
   success: boolean;
   data: {
@@ -14,17 +8,41 @@ interface OtpVideoUploadResponse {
   message?: string;
 }
 
-export const uploadOtpVideo = async (payload: OtpVideoUploadPayload): Promise<OtpVideoUploadResponse> => {
+/**
+ * Upload OTP video to backend using FormData
+ * @param sessionId - Session ID
+ * @param otp - OTP code
+ * @param videoBlob - Video blob from MediaRecorder
+ * @returns Upload response with video path
+ */
+export const uploadOtpVideo = async (
+  sessionId: string,
+  otp: string,
+  videoBlob: Blob
+): Promise<OtpVideoUploadResponse> => {
+  const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+  if (videoBlob.size > MAX_FILE_SIZE) {
+    throw new Error(
+      `Video file too large: ${(videoBlob.size / 1024 / 1024).toFixed(2)}MB. Maximum size is 50MB.`
+    );
+  }
+
+  if (videoBlob.size === 0) {
+    throw new Error('Video blob is empty');
+  }
+
+  // Create FormData for multipart upload
+  // Ensure blob has correct MIME type for backend validation
+  const videoFile = new File([videoBlob], 'otp_video.webm', { type: 'video/webm' });
+  
+  const formData = new FormData();
+  formData.append('session_id', sessionId);
+  formData.append('otp', otp);
+  formData.append('video', videoFile);
+
   const response = await fetch(`${BACKEND_URL}/otp-video/upload`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      session_id: payload.sessionId,
-      otp: payload.otp,
-      video: payload.video,
-    }),
+    body: formData,
   });
 
   if (!response.ok) {
