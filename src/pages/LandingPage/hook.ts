@@ -46,6 +46,9 @@ export const useLanding = () => {
 
       try {
         locationResult = await requestLocationPermission();
+        // Store location in localStorage for reuse in other pages
+        localStorage.setItem('user_latitude', locationResult.latitude.toString());
+        localStorage.setItem('user_longitude', locationResult.longitude.toString());
       } catch (error) {
         alert('Location access is required to proceed with verification. Please enable location access and try again.');
         setIsLoading(false);

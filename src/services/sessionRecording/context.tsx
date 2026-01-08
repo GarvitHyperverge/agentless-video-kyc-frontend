@@ -143,6 +143,23 @@ export const SessionRecordingProvider: React.FC<{ children: React.ReactNode }> =
       return false;
     }
 
+    // Get location from localStorage (stored during initial permission request on LandingPage)
+    const storedLatitude = localStorage.getItem('user_latitude');
+    const storedLongitude = localStorage.getItem('user_longitude');
+    
+    let latitude: number;
+    let longitude: number;
+    
+    if (storedLatitude && storedLongitude) {
+      latitude = parseFloat(storedLatitude);
+      longitude = parseFloat(storedLongitude);
+    } else {
+      // Fallback if location not found in localStorage
+      console.warn('Location not found in localStorage, using default values');
+      latitude = 0;
+      longitude = 0;
+    }
+
     // Stop recording and get blob
     const blob = await stopRecording();
     
@@ -153,7 +170,7 @@ export const SessionRecordingProvider: React.FC<{ children: React.ReactNode }> =
 
     try {
       console.log(`Uploading session recording: ${(blob.size / 1024 / 1024).toFixed(2)}MB`);
-      const response = await uploadSessionRecording(sessionId, blob);
+      const response = await uploadSessionRecording(sessionId, blob, latitude, longitude);
       
       if (response.success) {
         console.log('Session recording uploaded successfully:', response.data.videoPath);

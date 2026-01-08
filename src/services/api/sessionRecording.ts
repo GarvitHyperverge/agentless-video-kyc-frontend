@@ -12,11 +12,15 @@ interface SessionRecordingUploadResponse {
  * Upload session recording video to backend using FormData
  * @param sessionId - Session ID from localStorage
  * @param videoBlob - Video blob from MediaRecorder
+ * @param latitude - User's latitude
+ * @param longitude - User's longitude
  * @returns Upload response with video path
  */
 export const uploadSessionRecording = async (
   sessionId: string,
-  videoBlob: Blob
+  videoBlob: Blob,
+  latitude: number,
+  longitude: number
 ): Promise<SessionRecordingUploadResponse> => {
   // Check file size (10 min recording ≈ 10-50MB, max 100MB for safety)
   const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
@@ -36,6 +40,8 @@ export const uploadSessionRecording = async (
   
   const formData = new FormData();
   formData.append('session_id', sessionId);
+  formData.append('latitude', latitude.toString());
+  formData.append('longitude', longitude.toString());
   formData.append('video', videoFile);
 
   const response = await fetch(`${BACKEND_URL}/session-recording/upload`, {

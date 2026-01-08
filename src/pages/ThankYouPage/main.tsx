@@ -1,10 +1,12 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useSessionRecording } from '../../services/sessionRecording/context';
 import { completeVerificationSession } from '../../services/api/verificationSessions';
 
 const ThankYouPage: React.FC = () => {
   const { uploadRecording } = useSessionRecording();
   const hasCompletedRef = useRef(false);
+  const [isUploadComplete, setIsUploadComplete] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Complete verification session and upload recording when page loads
   useEffect(() => {
@@ -16,17 +18,26 @@ const ThankYouPage: React.FC = () => {
       
       if (!sessionId) {
         console.error('No session ID found');
+        setError('Session not found');
         return;
       }
 
       try {
         await completeVerificationSession({ sessionId });
         console.log('Verification session completed successfully');
+        
         // Upload recording only after verification completes successfully
-        await uploadRecording();
-        hasCompletedRef.current = true;
+        const uploadSuccess = await uploadRecording();
+        
+        if (uploadSuccess) {
+          setIsUploadComplete(true);
+          hasCompletedRef.current = true;
+        } else {
+          setError('Failed to upload session recording. Please try again.');
+        }
       } catch (err) {
         console.error('Error completing verification session:', err);
+        setError(err instanceof Error ? err.message : 'An error occurred during verification');
       }
     };
 
@@ -56,7 +67,41 @@ const ThankYouPage: React.FC = () => {
 
       {/* Main content */}
       <div className="relative z-10 w-full max-w-lg mx-auto text-center">
-        <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-3xl p-8 md:p-12 shadow-2xl">
+        {!isUploadComplete && !error && (
+          /* Loading state */
+          <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-3xl p-8 md:p-12 shadow-2xl">
+            <div className="flex flex-col items-center justify-center">
+              <div className="relative w-20 h-20 mx-auto mb-6">
+                <div className="absolute inset-0 border-4 border-emerald-500/30 rounded-full"></div>
+                <div className="absolute inset-0 border-4 border-transparent border-t-emerald-500 rounded-full animate-spin"></div>
+              </div>
+              <h2 className="text-2xl font-bold text-white mb-2">Processing...</h2>
+              <p className="text-slate-300">
+                Completing verification and uploading session recording
+              </p>
+            </div>
+          </div>
+        )}
+
+        {error && (
+          /* Error state */
+          <div className="backdrop-blur-xl bg-white/5 border border-red-500/30 rounded-3xl p-8 md:p-12 shadow-2xl">
+            <div className="flex flex-col items-center justify-center">
+              <div className="w-20 h-20 mx-auto mb-6 bg-red-500/20 rounded-full flex items-center justify-center">
+                <svg className="w-10 h-10 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </div>
+              <h2 className="text-2xl font-bold text-white mb-2">Error</h2>
+              <p className="text-slate-300 mb-4">{error}</p>
+              <p className="text-slate-400 text-sm">Please refresh the page and try again.</p>
+            </div>
+          </div>
+        )}
+
+        {isUploadComplete && (
+          /* Success content */
+          <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-3xl p-8 md:p-12 shadow-2xl">
           {/* Success icon with animation */}
           <div className="relative w-28 h-28 mx-auto mb-8">
             <div className="absolute inset-0 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-full animate-ping opacity-20" />
@@ -130,12 +175,15 @@ const ThankYouPage: React.FC = () => {
               </li>
             </ul>
           </div>
-        </div>
+          </div>
+        )}
 
         {/* Footer text */}
-        <p className="text-slate-500 text-sm mt-6">
-          Reference ID: {localStorage.getItem('session_id') || 'N/A'}
-        </p>
+        {isUploadComplete && (
+          <p className="text-slate-500 text-sm mt-6">
+            Reference ID: {localStorage.getItem('session_id') || 'N/A'}
+          </p>
+        )}
       </div>
 
       {/* CSS for animations */}
