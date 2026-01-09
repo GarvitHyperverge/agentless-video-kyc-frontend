@@ -102,6 +102,7 @@ export const SessionRecordingProvider: React.FC<{ children: React.ReactNode }> =
     });
   }, [recordingStream]);
 
+  // Not used as of now in the project
   const downloadRecording = useCallback(async (): Promise<boolean> => {
     const sessionId = localStorage.getItem('session_id');
     if (!sessionId) {
