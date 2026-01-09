@@ -60,7 +60,7 @@ export const useOtpPage = () => {
 
   /**
    * Start recording video and audio from the camera stream
-   * Collects chunks of video data and creates a blob when stopped
+   * Collects chunks of video data as they become available
    */
   const startRecording = () => {
     if (!streamRef.current) {
@@ -83,7 +83,6 @@ export const useOtpPage = () => {
       }
     };
 
-
     // Store recorder reference and start recording
     mediaRecorderRef.current = mediaRecorder;
     mediaRecorder.start();
@@ -94,30 +93,41 @@ export const useOtpPage = () => {
     timerRef.current = setInterval(() => {
       setRecordingTime((prev) => prev + 1);
     }, 1000);
-
-    // When recording stops, create blob and preview URL
-    mediaRecorder.onstop = () => {
-      const blob = new Blob(chunksRef.current, { type: 'video/webm' });
-      const url = URL.createObjectURL(blob);
-      setVideoBlob(blob);
-      setVideoUrl(url);
-      setRecordingStatus('recorded');
-    };
   };
 
   /**
-   * Stop the active recording
-   * Triggers onstop handler which creates the video blob
+   * Stop the active recording and create video blob
+   * Waits for recording to fully stop before creating blob to ensure all chunks are collected
    */
   const stopRecording = () => {
     if (mediaRecorderRef.current && recordingStatus === 'recording') {
-      mediaRecorderRef.current.stop(); // This triggers the onstop handler
+      const mediaRecorder = mediaRecorderRef.current;
+      
+      // Create a promise that resolves when recording fully stops
+      const stopPromise = new Promise<void>((resolve) => {
+        mediaRecorder.onstop = () => {
+          resolve();
+        };
+      });
+
+      // Request any remaining buffered data and stop recording
+      mediaRecorder.requestData();
+      mediaRecorder.stop();
       
       // Clear the recording timer
       if (timerRef.current) {
         clearInterval(timerRef.current);
         timerRef.current = null;
       }
+
+      // Wait for recording to fully stop, then create blob
+      stopPromise.then(() => {
+        const blob = new Blob(chunksRef.current, { type: 'video/webm' });
+        const url = URL.createObjectURL(blob);
+        setVideoBlob(blob);
+        setVideoUrl(url);
+        setRecordingStatus('recorded');
+      });
     }
   };
 
