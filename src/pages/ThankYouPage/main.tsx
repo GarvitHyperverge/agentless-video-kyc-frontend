@@ -2,16 +2,25 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useSessionRecording } from '../../services/sessionRecording/context';
 import { completeVerificationSession } from '../../services/api/verificationSessions';
 
+// Module-level flag that persists across component remounts (StrictMode)
+let hasStartedVerification = false;
+
 const ThankYouPage: React.FC = () => {
   const { uploadRecording } = useSessionRecording();
-  const hasCompletedRef = useRef(false);
+  const uploadRecordingRef = useRef(uploadRecording);
   const [isUploadComplete, setIsUploadComplete] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Keep uploadRecording ref up to date
+  useEffect(() => {
+    uploadRecordingRef.current = uploadRecording;
+  }, [uploadRecording]);
+
   // Complete verification session and upload recording when page loads
   useEffect(() => {
-    // Prevent multiple calls
-    if (hasCompletedRef.current) return;
+    // Prevent multiple calls - module-level variable persists across StrictMode remounts
+    if (hasStartedVerification) return;
+    hasStartedVerification = true;
 
     const handleCompleteVerification = async () => {
       const sessionId = localStorage.getItem('session_id');
@@ -23,28 +32,37 @@ const ThankYouPage: React.FC = () => {
       }
 
       try {
+        // Upload session recording first
+        console.log('Uploading session recording...');
+        const uploadSuccess = await uploadRecordingRef.current();
+        
+        if (!uploadSuccess) {
+          setError('Failed to upload session recording. Please try again.');
+          return;
+        }
+        
+        console.log('Session recording uploaded successfully');
+        
+        // Only complete verification session after successful upload
         await completeVerificationSession({ sessionId });
         console.log('Verification session completed successfully');
         
-        // Upload recording only after verification completes successfully
-        const uploadSuccess = await uploadRecording();
-        
-        if (uploadSuccess) {
-          setIsUploadComplete(true);
-          hasCompletedRef.current = true;
-        } else {
-          setError('Failed to upload session recording. Please try again.');
-        }
+        setIsUploadComplete(true);
       } catch (err) {
-        console.error('Error completing verification session:', err);
+        console.error('Error during verification process:', err);
         setError(err instanceof Error ? err.message : 'An error occurred during verification');
       }
     };
 
     // Call the API after a short delay to ensure page is loaded
-    const timer = setTimeout(handleCompleteVerification, 1000);
-    return () => clearTimeout(timer);
-  }, [uploadRecording]);
+    // Don't store timer - we want it to run even if component remounts in StrictMode
+    setTimeout(handleCompleteVerification, 1000);
+    
+    // No cleanup needed - we want the request to proceed even if component remounts
+    return () => {
+      // Intentionally empty - don't cancel the timer
+    };
+  }, []); // Empty dependency array - only run once on mount
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-emerald-900 flex items-center justify-center relative overflow-hidden py-8 px-4">
