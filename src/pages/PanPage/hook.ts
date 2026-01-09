@@ -10,7 +10,7 @@ import { capturePhotoFromVideo } from '../../utils/camera';
 
 export const usePanPage = () => {
   const navigate = useNavigate();
-  const { isRecording, startRecording } = useSessionRecording();
+  const { isSessionRecording, startRecording } = useSessionRecording();
   useSessionValidation(); // Auto-validates on mount
   
   // Camera hook with back camera for document capture
@@ -42,12 +42,11 @@ export const usePanPage = () => {
   // Combined error state
   const error = cameraError || uploadError;
 
-  // Start session recording on component mount (session validation handled by hook)
+  // Start session recording on component mount 
   useEffect(() => {
-
     // Start session recording immediately when page loads for audit purposes
     const startSessionRecording = async () => {
-      if (!sessionRecordingStartedRef.current && !isRecording) {
+      if (!sessionRecordingStartedRef.current && !isSessionRecording) {
         try {
           const recordingStream = await navigator.mediaDevices.getUserMedia({
             video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
@@ -63,18 +62,13 @@ export const usePanPage = () => {
     };
 
     startSessionRecording();
-  }, [isRecording, startRecording]);
+  }, [isSessionRecording, startRecording]);
 
   /**
    * Request access to back camera (environment) for document capture
    */
   const startCameraForCapture = async () => {
-    await startCamera({
-      facingMode: 'environment',
-      width: { ideal: 1920 },
-      height: { ideal: 1080 },
-      audio: false,
-    });
+    await startCamera();
   };
 
   /**
@@ -93,10 +87,12 @@ export const usePanPage = () => {
   };
 
   /**
-   * Handle file upload from file input
-   * Converts uploaded image file to base64 format
+   * Handles PAN card image file upload from user's local system
+   * 
+   * Converts the selected image file to base64 data URL format using FileReader API,
+   * then stores it in panImages state for the currently active side (front or back).
    */
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePanImageFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file || !activeSide) return;
 
@@ -222,7 +218,7 @@ export const usePanPage = () => {
     selectUploadMode,
     closeUploadOptions,
     capturePhoto,
-    handleFileUpload,
+    handlePanImageFileUpload,
     removeImage,
     handleContinue,
     canContinue,

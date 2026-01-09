@@ -15,7 +15,7 @@ const PanPage: React.FC = () => {
     selectUploadMode,
     closeUploadOptions,
     capturePhoto,
-    handleFileUpload,
+    handlePanImageFileUpload,
     removeImage,
     handleContinue,
     canContinue,
@@ -46,7 +46,7 @@ const PanPage: React.FC = () => {
         ref={fileInputRef}
         accept="image/jpeg,image/jpg,image/png,image/webp"
         className="hidden"
-        onChange={handleFileUpload}
+        onChange={handlePanImageFileUpload}
       />
 
       {/* Main content */}

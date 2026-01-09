@@ -2,7 +2,7 @@ import React, { useRef, useEffect } from 'react';
 import { useSessionRecording } from '../services/sessionRecording/context';
 
 const RecordingIndicator: React.FC = () => {
-  const { isRecording, recordingStream } = useSessionRecording();
+  const { isSessionRecording, recordingStream } = useSessionRecording();
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -25,7 +25,7 @@ const RecordingIndicator: React.FC = () => {
   }, [recordingStream]);
 
   // Show if recording OR if we have a stream (even if recording state hasn't updated yet)
-  if (!isRecording && !recordingStream) return null;
+  if (!isSessionRecording && !recordingStream) return null;
 
   return (
     <div className="fixed bottom-4 right-4 z-50 flex flex-col items-end gap-2">
@@ -47,7 +47,7 @@ const RecordingIndicator: React.FC = () => {
         </div>
       )}
       {/* Fallback if stream not available but recording */}
-      {!recordingStream && isRecording && (
+      {!recordingStream && isSessionRecording && (
         <div className="relative bg-black rounded-xl overflow-hidden shadow-2xl border-2 border-red-500/50 w-40 h-28 flex items-center justify-center">
           <div className="flex items-center gap-1.5 bg-red-500/90 backdrop-blur-sm px-2 py-0.5 rounded-full">
             <div className="w-2 h-2 bg-white rounded-full animate-pulse" />

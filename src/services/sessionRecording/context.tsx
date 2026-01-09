@@ -3,7 +3,7 @@ import { uploadSessionRecording } from '../api/sessionRecording';
 import { validateSession } from '../../utils/session';
 
 interface SessionRecordingContextType {
-  isRecording: boolean;
+  isSessionRecording: boolean;
   recordingStream: MediaStream | null;
   startRecording: (stream: MediaStream) => void;
   stopRecording: () => Promise<Blob | null>;
@@ -22,7 +22,7 @@ export const useSessionRecording = () => {
 };
 
 export const SessionRecordingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [isRecording, setIsRecording] = useState(false);
+  const [isSessionRecording, setIsSessionRecording] = useState(false);
   const chunksRef = useRef<Blob[]>([]);
   // Final video recording blob to be uploaded
   const recordingBlobRef = useRef<Blob | null>(null);
@@ -31,7 +31,7 @@ export const SessionRecordingProvider: React.FC<{ children: React.ReactNode }> =
 
   const startRecording = useCallback((stream: MediaStream) => {
     // Don't start if already recording with the same stream
-    if (mediaRecorderRef.current && isRecording && recordingStream === stream) {
+    if (mediaRecorderRef.current && isSessionRecording && recordingStream === stream) {
       console.log('Already recording with this stream');
       return;
     }
@@ -56,12 +56,12 @@ export const SessionRecordingProvider: React.FC<{ children: React.ReactNode }> =
       };
       mediaRecorderRef.current = mediaRecorder;
       mediaRecorder.start(1000); // Collect data every second
-      setIsRecording(true);
+      setIsSessionRecording(true);
       console.log('Session recording started');
     } catch (err) {
       console.error('Failed to start session recording:', err);
     }
-  }, [isRecording, recordingStream]);
+  }, [isSessionRecording, recordingStream]);
 
   const stopRecording = useCallback(async (): Promise<Blob | null> => {
     return new Promise((resolve) => {
@@ -80,7 +80,7 @@ export const SessionRecordingProvider: React.FC<{ children: React.ReactNode }> =
       
       // Clear stream state immediately so UI updates right away
       setRecordingStream(null);
-      setIsRecording(false);
+      setIsSessionRecording(false);
       
       // Checking if recorder is on or not
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
@@ -194,7 +194,7 @@ export const SessionRecordingProvider: React.FC<{ children: React.ReactNode }> =
   return (
     <SessionRecordingContext.Provider
       value={{
-        isRecording,
+        isSessionRecording,
         recordingStream,
         startRecording,
         stopRecording,

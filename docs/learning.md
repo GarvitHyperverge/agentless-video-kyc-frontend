@@ -63,7 +63,7 @@ React Context is a way to share data (state, functions, values) across multiple 
 
 **Why Use Context for Session Recording?**
 - **Cross-page state:** Recording starts on PAN page and continues through OTP, Selfie, and stops on Thank You page
-- **Single source of truth:** All recording state lives in one place (isRecording, MediaRecorder, video chunks, blob)
+- **Single source of truth:** All recording state lives in one place (isSessionRecording, MediaRecorder, video chunks, blob)
 - **Easy access:** Any component can use `useSessionRecording()` without prop drilling
 - **Lifecycle management:** Recording persists across page navigations automatically
 
@@ -185,7 +185,7 @@ SessionRecordingProvider({ children: <App /> })
 3. React calls: SessionRecordingProvider({ children: <App /> })
 
 4. Your function runs (context.tsx):
-   - Sets up state (isRecording, refs, etc.)
+   - Sets up state (isSessionRecording, refs, etc.)
    - Creates functions (startRecording, stopRecording, etc.)
    - Returns JSX:
      <SessionRecordingContext.Provider value={...}>
@@ -261,7 +261,7 @@ Why do we use `useState` for `recordingStream` instead of `useRef`? Can't we jus
 
 3. **Conditional rendering needs reactivity:**
    ```typescript
-   if (!isRecording && !recordingStream) return null; // Hide component
+   if (!isSessionRecording && !recordingStream) return null; // Hide component
    {recordingStream && (/* Show video preview */)} // Show video
    ```
    - These conditions check `recordingStream` to decide what to render
@@ -382,7 +382,7 @@ How does the RecordingIndicator stay visible when navigating between pages (Pan 
 2. **Context Provider wraps everything:**
    - `SessionRecordingProvider` is at the root level
    - It never unmounts (unless the entire app closes)
-   - State (`recordingStream`, `isRecording`) persists across navigation
+   - State (`recordingStream`, `isSessionRecording`) persists across navigation
 
 3. **BrowserRouter keeps it mounted:**
    - `BrowserRouter` manages route changes
@@ -762,5 +762,610 @@ src/utils/
 - Keep utilities simple and React-free when possible
 - Use hooks only when you need React features (state, lifecycle, refs)
 - This makes code more flexible and testable
+
+---
+
+### 11. PAN Stream Recording Flow: How Session Recording Works
+
+**Location:** `src/pages/PanPage/hook.ts` and `src/services/sessionRecording/context.tsx` and `src/components/RecordingIndicator.tsx`
+
+**The Complete Flow:**
+
+#### Overview
+When the PAN page loads, it automatically starts a session recording stream (front camera + microphone) for audit purposes. This is separate from the PAN card image capture which uses the back camera.
+
+#### Step-by-Step Flow:
+
+**1. Pan Page Creates Stream and Passes to Context**
+```typescript
+// In PanPage/hook.ts (lines 52-56)
+const recordingStream = await navigator.mediaDevices.getUserMedia({
+  video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
+  audio: true,
+});
+startRecording(recordingStream);  // Pass stream to context
+```
+- PanPage creates a MediaStream using `getUserMedia()`
+- Stream contains: front camera video track + audio track
+- Stream is passed to context's `startRecording()` function
+
+**2. Context Updates Stream useState**
+```typescript
+// In context.tsx (line 46)
+setRecordingStream(stream);  // State update triggers re-render
+```
+- Context receives the stream from PanPage
+- Calls `setRecordingStream(stream)` to store it in state
+- State changes from `null` → `MediaStream` object
+- React detects the state change and prepares to re-render
+
+**3. useState Causes Preview to Refresh and Show Stream**
+
+This is the React reactive flow:
+
+**3a. Context Re-renders and Provides New Value:**
+```typescript
+// In context.tsx (line 198)
+value={{
+  isSessionRecording,
+  recordingStream,  // ← New value provided
+  ...
+}}
+```
+
+**3b. RecordingIndicator Subscribes via Hook:**
+```typescript
+// In RecordingIndicator.tsx (line 5)
+const { isSessionRecording, recordingStream } = useSessionRecording();
+```
+- RecordingIndicator calls `useSessionRecording()` hook
+- Receives the updated `recordingStream` value from context
+
+**3c. Component Re-renders:**
+- Because `recordingStream` changed, React re-renders RecordingIndicator component
+- This is React's reactive system: state change → re-render
+
+**3d. useEffect Runs (Dependency Changed):**
+```typescript
+// In RecordingIndicator.tsx (lines 8-25)
+useEffect(() => {
+  if (videoRef.current && recordingStream) {
+    if (videoRef.current.srcObject !== recordingStream) {
+      videoRef.current.srcObject = recordingStream;  // Attach stream to video
+    }
+    
+    // Ensure video plays automatically
+    if (videoRef.current.paused) {
+      videoRef.current.play().catch((err) => {
+        console.error('Error playing recording preview:', err);
+      });
+    }
+  } else if (videoRef.current && !recordingStream) {
+    // Clear video element when stream is removed
+    videoRef.current.srcObject = null;
+    videoRef.current.pause();
+  }
+}, [recordingStream]);  // ← Runs because recordingStream changed
+```
+- `useEffect` has `recordingStream` in its dependency array
+- Since `recordingStream` changed, the effect runs
+- Sets `videoRef.current.srcObject = recordingStream`
+- Video element now displays the live preview
+
+**3e. Preview Shows Live Video:**
+- Video element automatically plays the stream
+- User sees live video preview in RecordingIndicator component
+
+**4. mediaRecorderRef Records in Background and Chunks are Collected**
+
+While the preview shows, recording happens silently in the background:
+
+```typescript
+// In context.tsx (lines 49-58)
+const mediaRecorder = new MediaRecorder(stream);
+mediaRecorder.ondataavailable = (event) => {
+  if (event.data && event.data.size > 0) {
+    chunksRef.current.push(event.data);  // Collect chunks silently
+  }
+};
+mediaRecorderRef.current = mediaRecorder;
+mediaRecorder.start(1000);  // Collect data every 1 second
+```
+
+**What happens:**
+- `MediaRecorder` is created with the stream (line 49)
+- Stored in `mediaRecorderRef.current` (line 57) - **ref doesn't trigger re-renders**
+- Recording starts with `mediaRecorder.start(1000)` (line 58)
+- Every 1 second, `ondataavailable` event fires
+- Each chunk (1 second of video+audio) is pushed to `chunksRef.current` array
+- This happens silently - **no UI updates** because refs don't trigger re-renders
+
+**Background Process:**
+```
+Every 1 second:
+  → MediaRecorder captures 1 second of video+audio
+  → ondataavailable event fires
+  → chunksRef.current.push(chunk)
+  → Array grows: [chunk1, chunk2, chunk3, ...]
+  → Continues until stopped...
+```
+
+**Later When Stopped:**
+```typescript
+// In context.tsx (lines 90-92)
+const finalChunks = [...chunksRef.current];  // All chunks
+const blob = new Blob(finalChunks, { type: 'video/webm' });
+// Now you have the complete video file!
+```
+- All chunks are combined into a single Blob
+- Blob is a complete WebM video file
+- Ready to upload to backend
+
+---
+
+#### Visual Flow Diagram:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│ 1. PanPage: getUserMedia() → stream                    │
+│    - Front camera + microphone                          │
+└─────────────────────────────────────────────────────────┘
+                    ↓
+┌─────────────────────────────────────────────────────────┐
+│ 2. PanPage: startRecording(stream)                      │
+│    - Passes stream to context                           │
+└─────────────────────────────────────────────────────────┘
+                    ↓
+┌─────────────────────────────────────────────────────────┐
+│ 3. Context: setRecordingStream(stream)                  │
+│    - State changes: null → MediaStream                  │
+│    - React detects change → re-render                   │
+└─────────────────────────────────────────────────────────┘
+                    ↓
+┌─────────────────────────────────────────────────────────┐
+│ 4. Context: Provides new value to subscribers           │
+│    - { recordingStream: MediaStream, ... }              │
+└─────────────────────────────────────────────────────────┘
+                    ↓
+┌─────────────────────────────────────────────────────────┐
+│ 5. RecordingIndicator: Receives updated stream          │
+│    - useSessionRecording() returns new stream           │
+│    - Component re-renders                               │
+└─────────────────────────────────────────────────────────┘
+                    ↓
+┌─────────────────────────────────────────────────────────┐
+│ 6. RecordingIndicator: useEffect runs                   │
+│    - [recordingStream] dependency changed               │
+│    - Sets video.srcObject = recordingStream             │
+│    - Video element shows live preview ✅                │
+└─────────────────────────────────────────────────────────┘
+
+[Parallel - Background Process]
+
+┌─────────────────────────────────────────────────────────┐
+│ 7. Context: MediaRecorder starts in background          │
+│    - mediaRecorderRef.current = new MediaRecorder()    │
+│    - mediaRecorder.start(1000)                          │
+└─────────────────────────────────────────────────────────┘
+                    ↓
+┌─────────────────────────────────────────────────────────┐
+│ 8. Every 1 second (background loop):                    │
+│    - ondataavailable fires                              │
+│    - chunksRef.current.push(chunk)                      │
+│    - [chunk1, chunk2, chunk3, ...] (silent collection) │
+│    - Continues until stopped...                         │
+└─────────────────────────────────────────────────────────┘
+                    ↓
+┌─────────────────────────────────────────────────────────┐
+│ 9. Later: stopRecording() called                        │
+│    - Stop MediaRecorder                                 │
+│    - Stop stream tracks (camera/mic)                    │
+│    - Combine all chunks → Blob                          │
+│    - Ready to upload ✅                                 │
+└─────────────────────────────────────────────────────────┘
+```
+
+---
+
+#### Key Concepts Explained:
+
+**State vs Refs - What Triggers UI Updates:**
+
+| Storage | React Tracks? | Triggers Re-render? | Use Case |
+|---------|--------------|---------------------|----------|
+| `useState` | ✅ Yes | ✅ Yes | `recordingStream` - needs to update UI |
+| `useRef` | ❌ No | ❌ No | `mediaRecorderRef`, `chunksRef` - background process |
+
+**Why This Design:**
+
+1. **State (`recordingStream`):** 
+   - User needs to **see** the preview → requires UI updates
+   - Components need to **react** to stream changes → requires re-renders
+   - React tracks state changes → triggers re-renders automatically
+
+2. **Refs (`mediaRecorderRef`, `chunksRef`):**
+   - Recording happens in **background** → no UI updates needed
+   - Chunks collected **silently** → don't need to re-render on each chunk
+   - React doesn't track refs → no re-renders (better performance)
+
+**The React Reactive Chain:**
+
+```
+State Change → Context Re-renders → Components Re-render → useEffect Runs → DOM Updates → User Sees Preview
+```
+
+**Why useEffect Runs:**
+- `recordingStream` is in the dependency array: `[recordingStream]`
+- When `recordingStream` changes, React knows to run the effect again
+- This is how React synchronizes side effects (DOM updates) with state changes
+
+---
+
+#### Summary:
+
+**Your Understanding is Correct:**
+1. ✅ PanPage creates stream → passes to context
+2. ✅ Context stores stream in state → React detects change
+3. ✅ State change → RecordingIndicator re-renders → useEffect runs → preview shows
+4. ✅ MediaRecorder runs in background → chunks collected silently every second
+
+**Key Takeaways:**
+- **State** = What React tracks → triggers UI updates (for preview)
+- **Refs** = What React doesn't track → no UI updates (for background recording)
+- **useEffect dependencies** = When to run side effects (when stream changes)
+- **Context propagation** = State change flows through Provider to all consumers
+
+This is a perfect example of React's reactive system in action!
+
+---
+
+### 12. PAN Card Upload Options Modal Flow
+
+**Location:** `src/pages/PanPage/hook.ts` (lines 132-160) and `src/pages/PanPage/main.tsx` (lines 327-392)
+
+**Overview:**
+When users want to add a PAN card image (front or back), they can choose between two methods: taking a photo with the camera or uploading a file from their device. This flow manages the modal that presents these options and handles the user's choice.
+
+#### The Three Functions
+
+**1. `openUploadOptions(side: 'front' | 'back')`** (lines 135-139)
+
+**Purpose:** Opens the upload options modal for a specific side (front or back).
+
+**What it does:**
+```typescript
+const openUploadOptions = (side: 'front' | 'back') => {
+  setActiveSide(side);        // Sets which side is being edited ('front' or 'back')
+  setUploadError(null);       // Clears any previous upload errors
+  setCameraError(null);       // Clears any camera errors
+};
+```
+
+**When it's called:**
+- User clicks on empty front/back card area (line 104, 185 in main.tsx)
+- User clicks "Change" button on existing image (line 118, 199 in main.tsx)
+
+**Result:** Modal appears showing two options: "Take Photo" or "Upload File"
+
+**Key Point:** The modal is controlled by `activeSide` state. When `activeSide !== null`, the modal is visible:
+```typescript
+// In main.tsx (line 328)
+{activeSide && !isCameraOpen && (
+  // Modal JSX here
+)}
+```
+
+---
+
+**2. `selectUploadMode(mode: 'camera' | 'file')`** (lines 144-150)
+
+**Purpose:** Handles the user's choice between camera capture or file upload.
+
+**What it does:**
+```typescript
+const selectUploadMode = (mode: 'camera' | 'file') => {
+  if (mode === 'camera') {
+    startCameraForCapture();  // Opens back camera for document capture
+  } else if (mode === 'file') {
+    fileInputRef.current?.click();  // Triggers hidden file input
+  }
+};
+```
+
+**When it's called:**
+- User clicks "Take Photo" button in modal (line 339 in main.tsx)
+- User clicks "Upload File" button in modal (line 365 in main.tsx)
+
+**What happens:**
+- If `mode === 'camera'`: Opens the camera modal with back camera (`facingMode: 'environment'`)
+- If `mode === 'file'`: Programmatically clicks the hidden file input, opening browser file picker
+
+**Result:**
+- Camera path: Camera modal opens, user can capture photo
+- File path: Browser file picker opens, user can select image from device
+
+---
+
+**3. `closeUploadOptions()`** (lines 155-160)
+
+**Purpose:** Closes the upload options modal and resets all related state.
+
+**What it does:**
+```typescript
+const closeUploadOptions = () => {
+  stopCamera();           // Stops any active camera stream
+  setActiveSide(null);    // Closes modal (modal only shows when activeSide !== null)
+  setUploadError(null);   // Clears upload errors
+  setCameraError(null);   // Clears camera errors
+};
+```
+
+**When it's called:**
+- User clicks outside modal (backdrop click) (line 330 in main.tsx)
+- User clicks "Cancel" button (line 386 in main.tsx)
+- User clicks close button on camera modal (line 432 in main.tsx)
+
+**Result:** Modal closes, state is reset, camera is stopped (if running)
+
+**Key Point:** Setting `activeSide` to `null` causes the modal to disappear because of conditional rendering.
+
+---
+
+#### Complete User Flow
+
+**Step 1: User Initiates Upload**
+
+```
+User clicks on empty PAN card area (front or back)
+  ↓
+openUploadOptions('front') or openUploadOptions('back')
+  ↓
+State changes:
+  - activeSide = 'front' or 'back'
+  - uploadError = null
+  - cameraError = null
+  ↓
+Modal appears (because activeSide !== null)
+```
+
+**Step 2: User Chooses Upload Method**
+
+```
+Modal shows two options:
+  1. "Take Photo" button
+  2. "Upload File" button
+  ↓
+User clicks one:
+  ↓
+  Option A: Click "Take Photo"
+    → selectUploadMode('camera')
+    → startCameraForCapture()
+    → Opens camera modal with back camera
+    → User can capture photo
+  
+  Option B: Click "Upload File"
+    → selectUploadMode('file')
+    → fileInputRef.current?.click()
+    → Browser file picker opens
+    → User selects image from device
+```
+
+**Step 3: User Completes or Cancels**
+
+```
+Option A: User completes capture/upload
+  ↓
+  - Image captured/uploaded
+  - Image stored in panImages state
+  - activeSide set to null (automatically closes modal)
+  - Preview shows uploaded image
+
+Option B: User cancels
+  ↓
+  - User clicks outside modal OR clicks Cancel
+  → closeUploadOptions()
+  → stopCamera() (if running)
+  → setActiveSide(null) (modal closes)
+  → setUploadError(null)
+  → setCameraError(null)
+  → State reset, modal closed
+```
+
+---
+
+#### Visual Flow Diagram
+
+```
+┌─────────────────────────────────────────────────────────┐
+│ Step 1: User Clicks Empty Card Area                    │
+│   onClick={() => openUploadOptions('front')}           │
+└─────────────────────────────────────────────────────────┘
+                    ↓
+┌─────────────────────────────────────────────────────────┐
+│ openUploadOptions('front')                              │
+│   - setActiveSide('front')                              │
+│   - setUploadError(null)                                │
+│   - setCameraError(null)                                │
+└─────────────────────────────────────────────────────────┘
+                    ↓
+┌─────────────────────────────────────────────────────────┐
+│ Modal Appears (activeSide !== null)                    │
+│   Shows:                                                │
+│   - "Take Photo" button                                 │
+│   - "Upload File" button                                │
+│   - "Cancel" button                                     │
+└─────────────────────────────────────────────────────────┘
+                    ↓
+        ┌───────────┴───────────┐
+        │                       │
+        ↓                       ↓
+┌───────────────┐     ┌─────────────────────┐
+│ Option A:     │     │ Option B:           │
+│ Take Photo    │     │ Upload File         │
+└───────────────┘     └─────────────────────┘
+        │                       │
+        ↓                       ↓
+┌───────────────┐     ┌─────────────────────┐
+│ selectUpload  │     │ selectUpload        │
+│ Mode('camera')│     │ Mode('file')        │
+└───────────────┘     └─────────────────────┘
+        │                       │
+        ↓                       ↓
+┌───────────────┐     ┌─────────────────────┐
+│ startCamera   │     │ fileInputRef        │
+│ ForCapture()  │     │ .current?.click()   │
+└───────────────┘     └─────────────────────┘
+        │                       │
+        ↓                       ↓
+┌───────────────┐     ┌─────────────────────┐
+│ Camera Modal  │     │ Browser File        │
+│ Opens         │     │ Picker Opens        │
+└───────────────┘     └─────────────────────┘
+        │                       │
+        ↓                       ↓
+┌─────────────────────────────────────────────────────────┐
+│ User Captures/Selects Image                             │
+│   - Image stored in panImages state                     │
+│   - activeSide set to null (modal closes)               │
+│   - Preview shows uploaded image                        │
+└─────────────────────────────────────────────────────────┘
+
+[If User Cancels Instead]
+
+┌─────────────────────────────────────────────────────────┐
+│ User Clicks Cancel or Outside Modal                    │
+│   closeUploadOptions()                                  │
+└─────────────────────────────────────────────────────────┘
+                    ↓
+┌─────────────────────────────────────────────────────────┐
+│ State Reset:                                            │
+│   - stopCamera()                                        │
+│   - setActiveSide(null) → Modal closes                 │
+│   - setUploadError(null)                                │
+│   - setCameraError(null)                                │
+└─────────────────────────────────────────────────────────┘
+```
+
+---
+
+#### Key Concepts
+
+**1. Modal State Management**
+
+The modal visibility is controlled by `activeSide` state:
+```typescript
+// Modal only shows when activeSide is not null
+{activeSide && !isCameraOpen && (
+  <div>Modal Content</div>
+)}
+```
+
+**Why this works:**
+- When `activeSide = null` → Modal doesn't render (hidden)
+- When `activeSide = 'front'` or `'back'` → Modal renders (visible)
+- This is React's conditional rendering pattern
+
+**2. Side Tracking**
+
+`activeSide` serves dual purpose:
+- Controls modal visibility
+- Tracks which side (front/back) is being edited
+- Used when storing image: `setPanImages((prev) => ({ ...prev, [activeSide]: imageData }))`
+
+**3. Error Cleanup**
+
+All three functions clear errors:
+- `openUploadOptions`: Clears errors when opening modal (fresh start)
+- `closeUploadOptions`: Clears errors when closing modal (clean state)
+
+This ensures users don't see stale error messages from previous attempts.
+
+**4. Camera Lifecycle**
+
+- `selectUploadMode('camera')`: Starts camera
+- `closeUploadOptions()`: Stops camera if running
+- Prevents camera from staying on after modal is closed
+
+**5. File Input Trigger**
+
+Instead of using a visible file input, the code uses a hidden one:
+```typescript
+<input
+  type="file"
+  ref={fileInputRef}
+  className="hidden"  // Hidden from view
+  onChange={handlePanImageFileUpload}
+/>
+```
+
+And programmatically triggers it:
+```typescript
+fileInputRef.current?.click();  // Opens file picker
+```
+
+This provides better UX control - you can customize the button appearance while still using native file picker.
+
+---
+
+#### Complete Code Flow Example
+
+**Scenario: User uploads front side image via file upload**
+
+```typescript
+// 1. User clicks empty front card area
+onClick={() => openUploadOptions('front')}
+
+// 2. openUploadOptions runs
+setActiveSide('front')     // State: activeSide = 'front'
+setUploadError(null)
+setCameraError(null)
+
+// 3. React re-renders, modal appears (activeSide !== null)
+{activeSide && !isCameraOpen && <Modal />}
+
+// 4. User clicks "Upload File" button
+onClick={() => selectUploadMode('file')}
+
+// 5. selectUploadMode runs
+fileInputRef.current?.click()  // Browser file picker opens
+
+// 6. User selects file, onChange fires
+onChange={handlePanImageFileUpload}
+
+// 7. handlePanImageFileUpload runs
+// - Converts file to base64
+// - Stores in state:
+setPanImages((prev) => ({ ...prev, front: imageData }))
+setActiveSide(null)  // Modal closes (activeSide is null now)
+
+// 8. React re-renders, modal disappears, image preview shows
+```
+
+---
+
+#### Summary
+
+**The Three Functions Work Together:**
+
+1. **`openUploadOptions`** → Opens modal, sets which side is being edited
+2. **`selectUploadMode`** → Routes user to camera or file upload path
+3. **`closeUploadOptions`** → Closes modal, cleans up state, stops camera
+
+**Key Patterns:**
+
+- **Conditional rendering** for modal visibility (`activeSide !== null`)
+- **State-driven UI** (modal appearance controlled by state)
+- **Programmatic file input** (hidden input, triggered via ref)
+- **Error cleanup** at every step for better UX
+- **Camera lifecycle management** (start/stop properly)
+
+**User Experience Flow:**
+
+1. Click card area → Modal appears
+2. Choose method → Camera opens OR file picker opens
+3. Complete or cancel → Image stored OR modal closed
+4. State reset → Ready for next action
+
+This provides a smooth, intuitive workflow for adding PAN card images!
 
 ---
