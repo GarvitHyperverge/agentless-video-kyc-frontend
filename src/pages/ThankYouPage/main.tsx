@@ -7,14 +7,9 @@ let hasStartedVerification = false;
 
 const ThankYouPage: React.FC = () => {
   const { uploadRecording } = useSessionRecording();
-  const uploadRecordingRef = useRef(uploadRecording);
   const [isUploadComplete, setIsUploadComplete] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Keep uploadRecording ref up to date
-  useEffect(() => {
-    uploadRecordingRef.current = uploadRecording;
-  }, [uploadRecording]);
 
   // Complete verification session and upload recording when page loads
   useEffect(() => {
@@ -34,8 +29,7 @@ const ThankYouPage: React.FC = () => {
       try {
         // Upload session recording first
         console.log('Uploading session recording...');
-        const uploadSuccess = await uploadRecordingRef.current();
-        
+        const uploadSuccess = await uploadRecording();
         if (!uploadSuccess) {
           setError('Failed to upload session recording. Please try again.');
           return;

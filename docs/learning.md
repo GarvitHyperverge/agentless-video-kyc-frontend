@@ -532,3 +532,71 @@ The component doesn't clean up the stream - it just reacts to the stream being c
 - Component = displays the stream
 
 ---
+
+### 9. Module-Level Variables vs useRef for Preventing Duplicate Operations
+
+**Location:** `src/pages/ThankYouPage/main.tsx` (line 6)
+
+**The Problem:**
+In React StrictMode, components mount twice in development. Without a guard, this would cause duplicate API calls (upload recording + complete session called twice).
+
+**The Solution:**
+Using a module-level variable to persist across component remounts.
+
+**Code:**
+```typescript
+// Module-level (outside component) - persists across remounts
+let hasStartedVerification = false;
+
+const ThankYouPage: React.FC = () => {
+  useEffect(() => {
+    if (hasStartedVerification) return;  // Guard check
+    hasStartedVerification = true;        // Set flag
+    setTimeout(handleCompleteVerification, 1000);
+  }, []);
+}
+```
+
+**Why Module-Level Works:**
+- **Persists across remounts:** Variable lives outside component lifecycle
+- **First mount:** Flag is `false` → sets to `true` → API calls execute
+- **Second mount (StrictMode):** Flag is still `true` → early return → API calls skipped
+
+**Why useRef Doesn't Work:**
+```typescript
+// ❌ INSIDE COMPONENT - doesn't persist across remounts
+const ThankYouPage: React.FC = () => {
+  const hasStartedRef = useRef(false);
+  
+  useEffect(() => {
+    if (hasStartedRef.current) return;
+    hasStartedRef.current = true;
+    setTimeout(handleCompleteVerification, 1000);
+  }, []);
+}
+```
+
+**What happens:**
+- **First mount:** `useRef(false)` creates ref → sets to `true` → API calls execute
+- **Component unmounts:** Ref is destroyed
+- **Second mount:** `useRef(false)` creates NEW ref → value is `false` again → API calls execute AGAIN ❌
+
+**Key Differences:**
+
+| Location | Persists Across Re-renders? | Persists Across Remounts? | Works for Guard? |
+|----------|----------------------------|---------------------------|------------------|
+| Module-level variable | ✅ Yes | ✅ Yes | ✅ Yes |
+| `useRef` inside component | ✅ Yes | ❌ No | ❌ No |
+| `useState` inside component | ✅ Yes | ❌ No | ❌ No |
+
+**When to Use Each:**
+- **Module-level:** Prevent duplicate operations across remounts (like API calls)
+- **useRef:** Store mutable values that persist across re-renders (same mount)
+- **useState:** Store values that trigger re-renders when changed
+
+**Summary:**
+- `useRef` persists across re-renders, NOT across remounts
+- In StrictMode, component unmounts and remounts → ref is recreated
+- Module-level variable persists across remounts → guard works correctly
+
+---
