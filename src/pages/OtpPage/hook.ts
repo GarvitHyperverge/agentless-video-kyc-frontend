@@ -4,13 +4,14 @@ import { RecordingStatus } from './type';
 import { generateOtp } from './utils';
 import { uploadOtpVideo } from '../../services/api/otpVideo';
 import { useSessionValidation } from '../../utils/hooks/useSessionValidation';
+import { validateSession } from '../../utils/session';
 import { useCamera } from '../../utils/hooks/useCamera';
 
 export const useOtpPage = () => {
   const navigate = useNavigate();
   
   // Shared hooks
-  const { validateSession } = useSessionValidation();
+  useSessionValidation(); // Auto-validates on mount
   const {
     streamRef,
     videoRef,
@@ -43,15 +44,10 @@ export const useOtpPage = () => {
   // Combined error state
   const error = cameraError || uploadError;
 
-  // Initialize OTP, validate session, and start camera on component mount
+  // Initialize OTP and start camera on component mount (session validation handled by hook)
   useEffect(() => {
-    try {
-      validateSession();
-      setOtp(generateOtp());
-      startCamera();
-    } catch {
-      // Session validation hook handles navigation
-    }
+    setOtp(generateOtp());
+    startCamera();
 
     // Cleanup function
     return () => {
@@ -165,8 +161,10 @@ export const useOtpPage = () => {
       return;
     }
 
-    const sessionId = validateSession();
-    if (!sessionId) {
+    let sessionId: string;
+    try {
+      sessionId = validateSession();
+    } catch (err) {
       setUploadError('Session not found. Please start the verification process again.');
       return;
     }

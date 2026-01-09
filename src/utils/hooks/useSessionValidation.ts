@@ -1,40 +1,21 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getSessionId, validateSession } from '../session';
 
 /**
- * Validates session ID exists in localStorage
- * Redirects to home page if session is missing
+ * Hook that validates session on mount and redirects if missing
+ * Also provides access to session utility functions
  */
 export const useSessionValidation = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const sessionId = localStorage.getItem('session_id');
+    const sessionId = getSessionId();
     if (!sessionId) {
       alert('Session not found. Please start the verification process again.');
       navigate('/');
     }
   }, [navigate]);
-
-  /**
-   * Get current session ID
-   * @returns session ID or null if not found
-   */
-  const getSessionId = (): string | null => {
-    return localStorage.getItem('session_id');
-  };
-
-  /**
-   * Validate session exists, throw error if not
-   * @throws Error if session not found
-   */
-  const validateSession = (): string => {
-    const sessionId = localStorage.getItem('session_id');
-    if (!sessionId) {
-      throw new Error('Session not found. Please start the verification process again.');
-    }
-    return sessionId;
-  };
 
   return { getSessionId, validateSession };
 };

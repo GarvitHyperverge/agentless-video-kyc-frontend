@@ -4,13 +4,14 @@ import { PanImages } from './type';
 import { uploadPanCardImages } from '../../services/api/panCard';
 import { useSessionRecording } from '../../services/sessionRecording/context';
 import { useSessionValidation } from '../../utils/hooks/useSessionValidation';
+import { validateSession } from '../../utils/session';
 import { useCamera } from '../../utils/hooks/useCamera';
 import { capturePhotoFromVideo } from '../../utils/camera';
 
 export const usePanPage = () => {
   const navigate = useNavigate();
   const { isRecording, startRecording } = useSessionRecording();
-  const { validateSession } = useSessionValidation();
+  useSessionValidation(); // Auto-validates on mount
   
   // Camera hook with back camera for document capture
   const {
@@ -41,14 +42,8 @@ export const usePanPage = () => {
   // Combined error state
   const error = cameraError || uploadError;
 
-  // Validate session and start session recording on component mount
+  // Start session recording on component mount (session validation handled by hook)
   useEffect(() => {
-    try {
-      validateSession();
-    } catch {
-      // Session validation hook handles navigation
-      console.log('Session validation error');
-    }
 
     // Start session recording immediately when page loads for audit purposes
     const startSessionRecording = async () => {
@@ -179,8 +174,10 @@ export const usePanPage = () => {
       return;
     }
 
-    const sessionId = validateSession();
-    if (!sessionId) {
+    let sessionId: string;
+    try {
+      sessionId = validateSession();
+    } catch (err) {
       setUploadError('Session not found. Please start the verification process again.');
       return;
     }

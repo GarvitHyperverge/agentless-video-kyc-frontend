@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useRef, useState, useCallback } from 'react';
 import { uploadSessionRecording } from '../api/sessionRecording';
+import { validateSession } from '../../utils/session';
 
 interface SessionRecordingContextType {
   isRecording: boolean;
@@ -104,8 +105,10 @@ export const SessionRecordingProvider: React.FC<{ children: React.ReactNode }> =
 
   // Not used as of now in the project
   const downloadRecording = useCallback(async (): Promise<boolean> => {
-    const sessionId = localStorage.getItem('session_id');
-    if (!sessionId) {
+    let sessionId: string;
+    try {
+      sessionId = validateSession();
+    } catch (err) {
       console.error('No session ID found');
       return false;
     }
@@ -138,8 +141,10 @@ export const SessionRecordingProvider: React.FC<{ children: React.ReactNode }> =
   }, [stopRecording]);
 
   const uploadRecording = useCallback(async (): Promise<boolean> => {
-    const sessionId = localStorage.getItem('session_id');
-    if (!sessionId) {
+    let sessionId: string;
+    try {
+      sessionId = validateSession();
+    } catch (err) {
       console.error('No session ID found');
       return false;
     }

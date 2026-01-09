@@ -1,12 +1,15 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useSessionRecording } from '../../services/sessionRecording/context';
 import { completeVerificationSession } from '../../services/api/verificationSessions';
+import { useSessionValidation } from '../../utils/hooks/useSessionValidation';
+import { getSessionId, validateSession } from '../../utils/session';
 
 // Module-level flag that persists across component remounts (StrictMode)
 let hasStartedVerification = false;
 
 const ThankYouPage: React.FC = () => {
   const { uploadRecording } = useSessionRecording();
+  useSessionValidation(); // Auto-validates on mount
   const [isUploadComplete, setIsUploadComplete] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -18,9 +21,10 @@ const ThankYouPage: React.FC = () => {
     hasStartedVerification = true;
 
     const handleCompleteVerification = async () => {
-      const sessionId = localStorage.getItem('session_id');
-      
-      if (!sessionId) {
+      let sessionId: string;
+      try {
+        sessionId = validateSession();
+      } catch (err) {
         console.error('No session ID found');
         setError('Session not found');
         return;
@@ -193,7 +197,7 @@ const ThankYouPage: React.FC = () => {
         {/* Footer text */}
         {isUploadComplete && (
           <p className="text-slate-500 text-sm mt-6">
-            Reference ID: {localStorage.getItem('session_id') || 'N/A'}
+            Reference ID: {getSessionId() || 'N/A'}
           </p>
         )}
       </div>

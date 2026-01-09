@@ -600,3 +600,167 @@ const ThankYouPage: React.FC = () => {
 - Module-level variable persists across remounts → guard works correctly
 
 ---
+
+### 10. Hooks vs Simple Utilities: When to Use Which
+
+**Location:** `src/utils/hooks/` vs `src/utils/`
+
+**The Question:**
+What's the difference between React hooks in `utils/hooks/` and simple utility functions in `utils/`? When should I use each?
+
+**The Answer:**
+
+#### Simple Utility Files (`utils/`)
+
+**Examples:** `session.ts`, `camera.ts`
+
+**Characteristics:**
+- ✅ **Plain functions** - No React dependencies
+- ✅ **Can be called anywhere** - In components, callbacks, utilities, even outside React
+- ❌ **No state management** - Pure functions or simple operations
+- ❌ **No React lifecycle** - No automatic re-runs or side effects
+
+**Example from `session.ts`:**
+```typescript
+export const validateSession = (): string => {
+  const sessionId = localStorage.getItem('session_id');
+  if (!sessionId) {
+    throw new Error('Session not found. Please start the verification process again.');
+  }
+  return sessionId;
+};
+```
+
+**Usage:**
+- Can be called directly: `validateSession()`
+- Can be used in any function, callback, or utility
+- No React context needed
+
+---
+
+#### React Hooks (`utils/hooks/`)
+
+**Examples:** `useSessionValidation.ts`, `useCamera.ts`
+
+**Characteristics:**
+- ✅ **Uses React hooks** - `useState`, `useEffect`, `useRef`, `useNavigate`, etc.
+- ❌ **Only in React components or hooks** - Must follow Rules of Hooks
+- ✅ **Manages state** - Tracks values that trigger re-renders
+- ✅ **React lifecycle** - Can run effects on mount, updates, cleanup, etc.
+
+**Example from `useSessionValidation.ts`:**
+```typescript
+export const useSessionValidation = () => {
+  const navigate = useNavigate(); // React hook
+  
+  useEffect(() => { // React lifecycle
+    const sessionId = getSessionId();
+    if (!sessionId) {
+      navigate('/'); // React routing
+    }
+  }, [navigate]);
+  
+  return { getSessionId, validateSession };
+};
+```
+
+**Usage:**
+- Must be called at top level of component: `useSessionValidation()`
+- Runs on mount and can trigger re-renders/navigation
+- Provides reactive behavior tied to component lifecycle
+
+**Example from `useCamera.ts`:**
+```typescript
+export const useCamera = () => {
+  const [isCameraReady, setIsCameraReady] = useState(false); // State
+  const videoRef = useRef<HTMLVideoElement>(null); // Ref
+  
+  useEffect(() => { // Side effects
+    // Attach stream to video...
+  });
+  
+  return { videoRef, isCameraReady, startCamera, stopCamera };
+};
+```
+
+- ✅ Manages React state and refs
+- ✅ Provides reactive values that update components
+
+---
+
+#### Comparison Table
+
+| Feature | Simple Utilities (`utils/`) | React Hooks (`utils/hooks/`) |
+|---------|----------------------------|------------------------------|
+| React dependency | ❌ None | ✅ Uses React hooks |
+| Where to use | ✅ Anywhere | ❌ Only in components/hooks |
+| State management | ❌ No | ✅ Yes (useState, useRef) |
+| Lifecycle | ❌ No | ✅ Yes (useEffect) |
+| Re-renders | ❌ No | ✅ Can trigger re-renders |
+| Examples | `validateSession()`, `capturePhotoFromVideo()` | `useCamera()`, `useSessionValidation()` |
+
+---
+
+#### When to Use Which?
+
+**Use Simple Utilities (`utils/`) when:**
+- ✅ Logic doesn't need React state/lifecycle
+- ✅ You want to use it outside React (callbacks, utilities)
+- ✅ It's a pure function or simple operation
+- ✅ No side effects or state needed
+
+**Examples:**
+- `validateSession()` - Just checks localStorage
+- `getSessionId()` - Just returns a value
+- `capturePhotoFromVideo()` - Pure function, no state needed
+
+**Use React Hooks (`utils/hooks/`) when:**
+- ✅ You need React state (`useState`)
+- ✅ You need side effects (`useEffect`)
+- ✅ You need refs (`useRef`)
+- ✅ You need navigation (`useNavigate`)
+- ✅ Logic is tied to component lifecycle
+- ✅ You need to trigger re-renders
+
+**Examples:**
+- `useCamera()` - Manages camera state, stream, and video ref
+- `useSessionValidation()` - Auto-validates on mount and redirects if missing
+
+---
+
+#### Project Structure
+
+```
+src/utils/
+├── session.ts              ← Simple utility (no React)
+│   ├── getSessionId()
+│   └── validateSession()
+│
+├── camera.ts               ← Simple utility (no React)
+│   └── capturePhotoFromVideo()
+│
+└── hooks/                  ← React hooks
+    ├── useSessionValidation.ts  ← Uses React (useEffect, useNavigate)
+    └── useCamera.ts             ← Uses React (useState, useRef, useEffect)
+```
+
+---
+
+#### Key Takeaway
+
+**Simple utilities = "Just functions, no React magic"**
+- Call them anywhere
+- No React needed
+- Simple and straightforward
+
+**React hooks = "React-aware logic"**
+- Only in components/hooks
+- Manages state and lifecycle
+- Reactive and integrated with React
+
+**Best Practice:**
+- Keep utilities simple and React-free when possible
+- Use hooks only when you need React features (state, lifecycle, refs)
+- This makes code more flexible and testable
+
+---

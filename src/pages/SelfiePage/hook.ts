@@ -3,12 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { SelfieImage } from './type';
 import { uploadSelfie } from '../../services/api/selfie';
 import { useSessionValidation } from '../../utils/hooks/useSessionValidation';
+import { validateSession } from '../../utils/session';
 import { useCamera } from '../../utils/hooks/useCamera';
 import { capturePhotoFromVideo } from '../../utils/camera';
 
 export const useSelfiePage = () => {
   const navigate = useNavigate();
-  const { validateSession } = useSessionValidation();
+  useSessionValidation(); // Auto-validates on mount
   
   // Camera hook with front camera for selfie
   const {
@@ -91,8 +92,10 @@ export const useSelfiePage = () => {
       return;
     }
 
-    const sessionId = validateSession();
-    if (!sessionId) {
+    let sessionId: string;
+    try {
+      sessionId = validateSession();
+    } catch (err) {
       setUploadError('Session not found. Please start the verification process again.');
       return;
     }
