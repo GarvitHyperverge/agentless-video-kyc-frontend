@@ -4,8 +4,6 @@ export interface SessionListItem {
   status: string;
   created_at: string;
   updated_at: string;
-  full_name?: string;
-  source_party?: string;
 }
 
 export interface SessionsListResponse {
@@ -42,30 +40,44 @@ export interface SessionDetails {
     updated_at: string;
   };
   businessPartnerPanData: {
+    id?: number;
+    session_uid: string;
     pan_number: string;
     full_name: string;
     father_name: string;
     date_of_birth: string;
     source_party: string;
+    created_at?: string;
   };
   cardIdValidation: {
+    id?: number;
+    session_uid: string;
     id_number: string;
     full_name: string;
     date_of_birth: string;
     father_name: string;
+    created_at?: string;
   };
-  fieldMatchResults: FieldMatchResults;
+  fieldMatchResults?: FieldMatchResults;
   faceMatchResult: {
+    id?: number;
+    session_uid: string;
     match_value: string;
     match_confidence: string;
     action: string;
+    created_at?: string;
   };
   selfieValidation: {
+    id?: number;
+    session_uid: string;
     live_face_value: string;
     live_face_confidence: string;
     action: string;
+    created_at?: string;
   };
   sessionMetadata: {
+    id?: number;
+    session_uid: string;
     latitude: number;
     longitude: number;
     camera_permission: boolean;
@@ -73,6 +85,8 @@ export interface SessionDetails {
     location_permission: boolean;
     ip_address: string;
     device_type: string;
+    created_at?: string;
+    updated_at?: string;
   };
 }
 

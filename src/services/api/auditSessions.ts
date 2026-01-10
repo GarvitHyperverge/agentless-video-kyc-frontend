@@ -45,7 +45,7 @@ export const getSessionDetails = async (
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || 'Failed to fetch session details');
+    throw new Error(errorData.error || errorData.message || 'Failed to fetch session details');
   }
 
   return response.json();

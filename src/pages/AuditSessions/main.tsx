@@ -187,12 +187,6 @@ const SessionsListPage: React.FC = () => {
                         External Transaction ID
                       </th>
                       <th className="px-6 py-4 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
-                        Full Name
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
-                        Source Party
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
                         Status
                       </th>
                       <th className="px-6 py-4 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
@@ -207,7 +201,7 @@ const SessionsListPage: React.FC = () => {
                     {sessions.length === 0 ? (
                       <tr>
                         <td
-                          colSpan={7}
+                          colSpan={5}
                           className="px-6 py-12 text-center text-slate-400"
                         >
                           No sessions found
@@ -231,16 +225,6 @@ const SessionsListPage: React.FC = () => {
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-white">
-                              {session.full_name || 'N/A'}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-slate-300">
-                              {session.source_party || 'N/A'}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
                             <StatusBadge status={session.status} />
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
@@ -252,7 +236,7 @@ const SessionsListPage: React.FC = () => {
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                // TODO: Add details functionality
+                                handleRowClick(session.session_uid);
                               }}
                               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors"
                             >

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   getSessionDetails,
@@ -17,7 +17,7 @@ export const useSessionDetail = () => {
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [showFlagModal, setShowFlagModal] = useState(false);
 
-  const fetchSessionDetails = async () => {
+  const fetchSessionDetails = useCallback(async () => {
     if (!sessionUid) {
       setError('Session UID is required');
       setLoading(false);
@@ -29,7 +29,46 @@ export const useSessionDetail = () => {
     try {
       const response = await getSessionDetails(sessionUid);
       if (response.success) {
-        setSessionData(response.data);
+        // Compute fieldMatchResults from the data since API doesn't return it
+        const data = response.data;
+        const fieldMatchResults = {
+          allMatched: true,
+          results: {
+            name: {
+              value1: data.businessPartnerPanData.full_name,
+              value2: data.cardIdValidation.full_name,
+              match: data.businessPartnerPanData.full_name.toLowerCase().trim() === 
+                     data.cardIdValidation.full_name.toLowerCase().trim(),
+            },
+            dateOfBirth: {
+              value1: data.businessPartnerPanData.date_of_birth,
+              value2: data.cardIdValidation.date_of_birth,
+              match: data.businessPartnerPanData.date_of_birth === data.cardIdValidation.date_of_birth,
+            },
+            idNumber: {
+              value1: data.businessPartnerPanData.pan_number,
+              value2: data.cardIdValidation.id_number,
+              match: data.businessPartnerPanData.pan_number.toUpperCase().trim() === 
+                     data.cardIdValidation.id_number.toUpperCase().trim(),
+            },
+            fatherName: {
+              value1: data.businessPartnerPanData.father_name,
+              value2: data.cardIdValidation.father_name,
+              match: data.businessPartnerPanData.father_name.toLowerCase().trim() === 
+                     data.cardIdValidation.father_name.toLowerCase().trim(),
+            },
+          },
+        };
+        fieldMatchResults.allMatched = Object.values(fieldMatchResults.results).every(
+          (result) => result.match
+        );
+        
+        const sessionDataWithMatches: SessionDetails = {
+          ...data,
+          fieldMatchResults,
+        };
+        
+        setSessionData(sessionDataWithMatches);
       } else {
         setError(response.message || 'Failed to fetch session details');
       }
@@ -38,11 +77,11 @@ export const useSessionDetail = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [sessionUid]);
 
   useEffect(() => {
     fetchSessionDetails();
-  }, [sessionUid]);
+  }, [fetchSessionDetails]);
 
   const handleStatusUpdate = async (
     status: 'approved' | 'rejected' | 'flagged',
