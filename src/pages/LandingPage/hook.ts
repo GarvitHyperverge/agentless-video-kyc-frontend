@@ -87,7 +87,7 @@ export const useLanding = () => {
 
       if (response.success) {
         setShowPermissionsModal(false);
-        navigate('/pan');
+        navigate('/verify/pan');
       } else {
         console.log(response);
       }

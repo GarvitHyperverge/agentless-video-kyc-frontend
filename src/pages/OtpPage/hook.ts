@@ -207,7 +207,7 @@ export const useOtpPage = () => {
       if (response.success) {
         // Release camera resources before navigating away
         stopCamera();
-        navigate('/selfie');
+        navigate('/verify/selfie');
       } else {
         setUploadError(response.message || 'Failed to upload video');
         setRecordingStatus('recorded');

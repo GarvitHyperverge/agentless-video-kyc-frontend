@@ -110,7 +110,7 @@ export const useSelfiePage = () => {
       });
 
       if (response.success) {
-        navigate('/thank-you');
+        navigate('/verify/complete');
       } else {
         setUploadError(response.message || 'Failed to upload selfie');
       }

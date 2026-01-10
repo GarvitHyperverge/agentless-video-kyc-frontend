@@ -190,7 +190,7 @@ export const usePanPage = () => {
       });
 
       if (response.success) {
-        navigate('/otp');
+        navigate('/verify/otp');
       } else {
         setUploadError(response.message || 'Failed to upload images');
       }

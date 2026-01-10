@@ -13,7 +13,7 @@ export const useSessionValidation = () => {
     const sessionId = getSessionId();
     if (!sessionId) {
       alert('Session not found. Please start the verification process again.');
-      navigate('/');
+      navigate('/audit/sessions');
     }
   }, [navigate]);
 
