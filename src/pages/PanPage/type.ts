@@ -1,4 +1,9 @@
+export interface PanImage {
+  file: File | null;
+  url: string | null; // Object URL for display
+}
+
 export interface PanImages {
-  front: string | null;
-  back: string | null;
+  front: PanImage;
+  back: PanImage;
 }

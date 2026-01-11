@@ -101,16 +101,16 @@ const PanPage: React.FC = () => {
                 Front Side
               </label>
               <div
-                onClick={() => !panImages.front && openUploadOptions('front')}
+                onClick={() => !panImages.front.file && openUploadOptions('front')}
                 className={`relative aspect-[1.6] rounded-2xl border-2 border-dashed transition-all duration-300 overflow-hidden ${
-                  panImages.front
+                  panImages.front.file
                     ? 'border-emerald-500/50 bg-emerald-500/10'
                     : 'border-slate-600 bg-slate-800/50 hover:border-indigo-500/50 hover:bg-slate-800 cursor-pointer'
                 }`}
               >
-                {panImages.front ? (
+                {panImages.front.url ? (
                   <>
-                    <img src={panImages.front} alt="PAN Front" className="w-full h-full object-cover" />
+                    <img src={panImages.front.url} alt="PAN Front" className="w-full h-full object-cover" />
                     <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
                       <button
                         onClick={(e) => {
@@ -182,16 +182,16 @@ const PanPage: React.FC = () => {
                 Back Side
               </label>
               <div
-                onClick={() => !panImages.back && openUploadOptions('back')}
+                onClick={() => !panImages.back.file && openUploadOptions('back')}
                 className={`relative aspect-[1.6] rounded-2xl border-2 border-dashed transition-all duration-300 overflow-hidden ${
-                  panImages.back
+                  panImages.back.file
                     ? 'border-emerald-500/50 bg-emerald-500/10'
                     : 'border-slate-600 bg-slate-800/50 hover:border-indigo-500/50 hover:bg-slate-800 cursor-pointer'
                 }`}
               >
-                {panImages.back ? (
+                {panImages.back.url ? (
                   <>
-                    <img src={panImages.back} alt="PAN Back" className="w-full h-full object-cover" />
+                    <img src={panImages.back.url} alt="PAN Back" className="w-full h-full object-cover" />
                     <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
                       <button
                         onClick={(e) => {

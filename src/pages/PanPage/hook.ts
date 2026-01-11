@@ -30,7 +30,10 @@ export const usePanPage = () => {
   });
 
   // Page-specific state
-  const [panImages, setPanImages] = useState<PanImages>({ front: null, back: null }); 
+  const [panImages, setPanImages] = useState<PanImages>({ 
+    front: { file: null, url: null }, 
+    back: { file: null, url: null } 
+  }); 
   const [activeSide, setActiveSide] = useState<'front' | 'back' | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -74,23 +77,36 @@ export const usePanPage = () => {
   /**
    * Capture full photo from video stream
    */
-  const capturePhoto = () => {
+  const capturePhoto = async () => {
     if (!videoRef.current || !activeSide) return;
 
-    // Capture full video frame
-    const imageData = capturePhotoFromVideo(videoRef.current);
+    try {
+      // Capture full video frame as Blob
+      const blob = await capturePhotoFromVideo(videoRef.current);
+      
+      // Convert Blob to File for upload
+      const file = new File([blob], `pan_${activeSide}.jpg`, { type: 'image/jpeg' });
+      
+      // Create object URL for display
+      const imageUrl = URL.createObjectURL(blob);
 
-    // Save image for the active side and close camera
-    setPanImages((prev) => ({ ...prev, [activeSide]: imageData }));
-    stopCamera();
-    setActiveSide(null);
+      // Save image for the active side and close camera
+      setPanImages((prev) => ({ 
+        ...prev, 
+        [activeSide]: { file, url: imageUrl } 
+      }));
+      stopCamera();
+      setActiveSide(null);
+    } catch (err) {
+      console.error('Capture error:', err);
+      setCameraError('Failed to capture photo. Please try again.');
+    }
   };
 
   /**
    * Handles PAN card image file upload from user's local system
    * 
-   * Converts the selected image file to base64 data URL format using FileReader API,
-   * then stores it in panImages state for the currently active side (front or back).
+   * Stores the File object directly and creates an object URL for display.
    */
   const handlePanImageFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -99,18 +115,11 @@ export const usePanPage = () => {
     setUploadError(null);
 
     try {
-      // Convert file to base64 using FileReader
-      const imageData = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          resolve(event.target?.result as string);
-        };
-        reader.onerror = () => reject(new Error('Failed to read file'));
-        reader.readAsDataURL(file);
-      });
+      // Create object URL for display
+      const imageUrl = URL.createObjectURL(file);
       
-      // Save image for the active side
-      setPanImages((prev) => ({ ...prev, [activeSide]: imageData }));
+      // Save file and URL for the active side
+      setPanImages((prev) => ({ ...prev, [activeSide]: { file, url: imageUrl } }));
       setActiveSide(null);
     } catch (err) {
       setUploadError('Failed to process image. Please try again.');
@@ -154,10 +163,16 @@ export const usePanPage = () => {
   };
 
   /**
-   * Remove uploaded image for a specific side
+   * Remove uploaded image for a specific side and clean up object URL
    */
   const removeImage = (side: 'front' | 'back') => {
-    setPanImages((prev) => ({ ...prev, [side]: null }));
+    setPanImages((prev) => {
+      // Clean up object URL if it exists
+      if (prev[side]?.url) {
+        URL.revokeObjectURL(prev[side].url);
+      }
+      return { ...prev, [side]: { file: null, url: null } };
+    });
   };
 
   /**
@@ -165,7 +180,7 @@ export const usePanPage = () => {
    * Validates that both front and back images are present before uploading
    */
   const handleContinue = async () => {
-    if (!panImages.front || !panImages.back) {
+    if (!panImages.front.file || !panImages.back.file) {
       setUploadError('Please upload both front and back images of your PAN card');
       return;
     }
@@ -185,11 +200,18 @@ export const usePanPage = () => {
       // Upload images to backend
       const response = await uploadPanCardImages({
         sessionId,
-        frontImage: panImages.front,
-        backImage: panImages.back,
+        frontImageFile: panImages.front.file,
+        backImageFile: panImages.back.file,
       });
 
       if (response.success) {
+        // Clean up object URLs before navigating
+        if (panImages.front.url) {
+          URL.revokeObjectURL(panImages.front.url);
+        }
+        if (panImages.back.url) {
+          URL.revokeObjectURL(panImages.back.url);
+        }
         navigate('/verify/otp');
       } else {
         setUploadError(response.message || 'Failed to upload images');
@@ -203,7 +225,7 @@ export const usePanPage = () => {
   };
 
   // Determine if continue button should be enabled
-  const canContinue = panImages.front !== null && panImages.back !== null;
+  const canContinue = panImages.front.file !== null && panImages.back.file !== null;
 
   return {
     panImages,

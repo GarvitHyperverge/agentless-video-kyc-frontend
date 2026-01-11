@@ -81,16 +81,16 @@ const SelfiePage: React.FC = () => {
           {/* Selfie Capture Section */}
           <div className="mb-8">
             <div
-              onClick={() => !selfieImage.image && openCamera()}
+              onClick={() => !selfieImage.imageFile && openCamera()}
               className={`relative aspect-square max-w-xs mx-auto rounded-full border-4 border-dashed transition-all duration-300 overflow-hidden ${
-                selfieImage.image
+                selfieImage.imageFile
                   ? 'border-emerald-500/50 bg-emerald-500/10'
                   : 'border-slate-600 bg-slate-800/50 hover:border-cyan-500/50 hover:bg-slate-800 cursor-pointer'
               }`}
             >
-              {selfieImage.image ? (
+              {selfieImage.imageUrl ? (
                 <>
-                  <img src={selfieImage.image} alt="Selfie" className="w-full h-full object-cover" />
+                  <img src={selfieImage.imageUrl} alt="Selfie" className="w-full h-full object-cover" />
                   <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
                     <button
                       onClick={(e) => {

@@ -28,7 +28,7 @@ export const useSelfiePage = () => {
   });
 
   // Page-specific state
-  const [selfieImage, setSelfieImage] = useState<SelfieImage>({ image: null });
+  const [selfieImage, setSelfieImage] = useState<SelfieImage>({ imageFile: null, imageUrl: null });
   const [isProcessing, setIsProcessing] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
@@ -38,14 +38,25 @@ export const useSelfiePage = () => {
   /**
    * Capture full photo from video stream
    */
-  const capturePhoto = () => {
+  const capturePhoto = async () => {
     if (!videoRef.current) return;
 
-    // Capture full video frame
-    const imageData = capturePhotoFromVideo(videoRef.current);
+    try {
+      // Capture full video frame as Blob
+      const blob = await capturePhotoFromVideo(videoRef.current);
+      
+      // Convert Blob to File for upload
+      const file = new File([blob], 'selfie.jpg', { type: 'image/jpeg' });
+      
+      // Create object URL for display
+      const imageUrl = URL.createObjectURL(blob);
 
-    setSelfieImage({ image: imageData });
-    stopCamera();
+      setSelfieImage({ imageFile: file, imageUrl });
+      stopCamera();
+    } catch (err) {
+      console.error('Capture error:', err);
+      setCameraError('Failed to capture photo. Please try again.');
+    }
   };
 
   /**
@@ -67,17 +78,20 @@ export const useSelfiePage = () => {
   };
 
   /**
-   * Remove captured selfie image
+   * Remove captured selfie image and clean up object URL
    */
   const removeImage = () => {
-    setSelfieImage({ image: null });
+    if (selfieImage.imageUrl) {
+      URL.revokeObjectURL(selfieImage.imageUrl);
+    }
+    setSelfieImage({ imageFile: null, imageUrl: null });
   };
 
   /**
    * Retake photo - reset image and restart camera
    */
   const retakePhoto = async () => {
-    setSelfieImage({ image: null });
+    removeImage(); // This cleans up the object URL
     setUploadError(null);
     setCameraError(null);
     await openCamera();
@@ -87,7 +101,7 @@ export const useSelfiePage = () => {
    * Upload selfie to backend and navigate to thank you page
    */
   const handleContinue = async () => {
-    if (!selfieImage.image) {
+    if (!selfieImage.imageFile) {
       setUploadError('Please capture or upload a selfie');
       return;
     }
@@ -106,10 +120,14 @@ export const useSelfiePage = () => {
     try {
       const response = await uploadSelfie({
         sessionId,
-        image: selfieImage.image,
+        imageFile: selfieImage.imageFile,
       });
 
       if (response.success) {
+        // Clean up object URL before navigating
+        if (selfieImage.imageUrl) {
+          URL.revokeObjectURL(selfieImage.imageUrl);
+        }
         navigate('/verify/complete');
       } else {
         setUploadError(response.message || 'Failed to upload selfie');
@@ -122,7 +140,7 @@ export const useSelfiePage = () => {
     }
   };
 
-  const canContinue = selfieImage.image !== null;
+  const canContinue = selfieImage.imageFile !== null;
 
   return {
     selfieImage,

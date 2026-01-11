@@ -1,3 +1,4 @@
 export interface SelfieImage {
-  image: string | null;
+  imageFile: File | null;
+  imageUrl: string | null; // Object URL for display
 }

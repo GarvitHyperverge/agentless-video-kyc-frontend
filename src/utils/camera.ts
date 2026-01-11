@@ -1,9 +1,9 @@
 /**
- * Simple utility to capture full photo from video element
+ * Capture full photo from video element and convert to Blob
  * @param video - Video element to capture from
- * @returns Base64 encoded image string
+ * @returns Promise that resolves to a Blob representing the captured image
  */
-export const capturePhotoFromVideo = (video: HTMLVideoElement): string => {
+export const capturePhotoFromVideo = (video: HTMLVideoElement): Promise<Blob> => {
   const canvas = document.createElement('canvas');
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
@@ -16,5 +16,18 @@ export const capturePhotoFromVideo = (video: HTMLVideoElement): string => {
   // Draw the entire video frame
   ctx.drawImage(video, 0, 0);
 
-  return canvas.toDataURL('image/jpeg', 0.9);
+  // Convert canvas to Blob instead of base64
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (blob) {
+          resolve(blob);
+        } else {
+          reject(new Error('Failed to capture image'));
+        }
+      },
+      'image/jpeg',
+      0.9
+    );
+  });
 };
