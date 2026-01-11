@@ -2,6 +2,8 @@ export interface SessionListItem {
   session_uid: string;
   external_txn_id: string;
   status: string;
+  client_name?: string;
+  audit_status?: 'pending' | 'pass' | 'fail';
   created_at: string;
   updated_at: string;
 }
@@ -36,6 +38,8 @@ export interface SessionDetails {
     session_uid: string;
     external_txn_id: string;
     status: string;
+    client_name?: string;
+    audit_status?: 'pending' | 'pass' | 'fail';
     created_at: string;
     updated_at: string;
   };

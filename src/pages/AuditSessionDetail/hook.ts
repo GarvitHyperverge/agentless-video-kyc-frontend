@@ -4,6 +4,7 @@ import {
   getSessionDetails,
   updateSessionStatus,
 } from '../../services/api/auditSessions';
+import { updateAuditStatus } from '../../services/api/verificationSessions';
 import { SessionDetails, UpdateStatusPayload } from '../AuditSessions/types';
 
 export const useSessionDetail = () => {
@@ -131,6 +132,35 @@ export const useSessionDetail = () => {
     handleStatusUpdate('flagged', reason);
   };
 
+  const handleAuditStatusUpdate = async (auditStatus: 'pass' | 'fail') => {
+    if (!sessionUid) return;
+
+    setIsUpdating(true);
+    setError(null);
+    setSuccessMessage(null);
+
+    try {
+      const response = await updateAuditStatus({
+        session_id: sessionUid,
+        audit_status: auditStatus,
+      });
+
+      if (response.success) {
+        setSuccessMessage(
+          `Audit status updated to ${auditStatus === 'pass' ? 'PASS' : 'FAIL'} successfully!`
+        );
+        // Refresh session data
+        await fetchSessionDetails();
+      } else {
+        setError(response.message || 'Failed to update audit status');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update audit status');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
   return {
     sessionData,
     loading,
@@ -144,6 +174,7 @@ export const useSessionDetail = () => {
     handleApprove,
     handleReject,
     handleFlag,
+    handleAuditStatusUpdate,
     navigate,
   };
 };

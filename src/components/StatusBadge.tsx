@@ -16,6 +16,9 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
     if (normalizedStatus === 'flagged' || normalizedStatus === 'warning') {
       return 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30';
     }
+    if (normalizedStatus === 'pending') {
+      return 'bg-amber-500/20 text-amber-300 border-amber-500/30';
+    }
     return 'bg-slate-500/20 text-slate-300 border-slate-500/30';
   };
 

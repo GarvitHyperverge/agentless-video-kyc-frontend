@@ -12,6 +12,8 @@ const SessionDetailPage: React.FC = () => {
     loading,
     error,
     successMessage,
+    isUpdating,
+    handleAuditStatusUpdate,
     navigate,
   } = useSessionDetail();
 
@@ -124,6 +126,57 @@ const SessionDetailPage: React.FC = () => {
             <p className="text-slate-400">Review and manage verification session</p>
           </div>
           <div className="flex items-center gap-3">
+            {/* Audit Status Buttons */}
+            <div className="flex items-center gap-2 mr-4">
+              <button
+                onClick={() => handleAuditStatusUpdate('pass')}
+                disabled={isUpdating}
+                className={`px-4 py-2 rounded-lg font-semibold transition-all flex items-center gap-2 ${
+                  isUpdating
+                    ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
+                    : 'bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-500/30 hover:shadow-green-500/50'
+                }`}
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+                PASS
+              </button>
+              <button
+                onClick={() => handleAuditStatusUpdate('fail')}
+                disabled={isUpdating}
+                className={`px-4 py-2 rounded-lg font-semibold transition-all flex items-center gap-2 ${
+                  isUpdating
+                    ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
+                    : 'bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-500/30 hover:shadow-red-500/50'
+                }`}
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+                FAIL
+              </button>
+            </div>
             <div className="flex items-center gap-2 text-slate-300 mr-2">
               <svg
                 className="w-5 h-5 text-slate-400"
@@ -229,10 +282,24 @@ const SessionDetailPage: React.FC = () => {
                   {formatFieldValue(session.external_txn_id)}
                 </div>
               </div>
+              {session.client_name && (
+                <div>
+                  <label className="text-slate-400 text-sm">Client Name</label>
+                  <div className="text-white text-sm mt-1">
+                    {formatFieldValue(session.client_name)}
+                  </div>
+                </div>
+              )}
               <div>
                 <label className="text-slate-400 text-sm">Status</label>
                 <div className="mt-1">
                   <StatusBadge status={session.status} />
+                </div>
+              </div>
+              <div>
+                <label className="text-slate-400 text-sm">Audit Status</label>
+                <div className="mt-1">
+                  <StatusBadge status={session.audit_status || 'pending'} />
                 </div>
               </div>
               <div>
