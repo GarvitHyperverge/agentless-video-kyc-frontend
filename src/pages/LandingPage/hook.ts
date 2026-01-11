@@ -9,12 +9,14 @@ import {
   requestLocationPermission,
 } from './utils';
 import { saveSessionMetadata } from '../../services/api/sessionMetadata';
+import { useSessionRecording } from '../../services/sessionRecording/context';
 
 export const useLanding = () => {
   const navigate = useNavigate();
   const { sessionId } = useParams<{ sessionId: string }>();
   const [showPermissionsModal, setShowPermissionsModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const { startRecording } = useSessionRecording();
 
   useEffect(() => {
     if (sessionId) {
@@ -86,6 +88,15 @@ export const useLanding = () => {
       });
 
       if (response.success) {
+        // Start the shared stream after permissions are granted
+        try {
+          await startRecording();
+          console.log('Shared stream started from LandingPage');
+        } catch (err) {
+          console.warn('Could not start shared stream:', err);
+          // Continue anyway, stream will be started on PanPage
+        }
+        
         setShowPermissionsModal(false);
         navigate('/verify/pan');
       } else {

@@ -1,39 +1,86 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SelfieImage } from './type';
 import { uploadSelfie } from '../../services/api/selfie';
 import { useSessionValidation } from '../../utils/hooks/useSessionValidation';
 import { validateSession } from '../../utils/session';
-import { useCamera } from '../../utils/hooks/useCamera';
+import { useSessionRecording } from '../../services/sessionRecording/context';
 import { capturePhotoFromVideo } from '../../utils/camera';
 
 export const useSelfiePage = () => {
   const navigate = useNavigate();
   useSessionValidation(); // Auto-validates on mount
   
-  // Camera hook with front camera for selfie
-  const {
-    videoRef,
-    isCameraReady,
-    isCameraOpen,
-    error: cameraError,
-    startCamera,
-    stopCamera,
-    setError: setCameraError,
-  } = useCamera({
-    facingMode: 'user',
-    width: { ideal: 1280 },
-    height: { ideal: 720 },
-    audio: false,
-  });
+  // Use shared stream from session recording
+  const { getSharedStream, isStreamInitialized, startRecording } = useSessionRecording();
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [isCameraReady, setIsCameraReady] = useState(false);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Page-specific state
   const [selfieImage, setSelfieImage] = useState<SelfieImage>({ imageFile: null, imageUrl: null });
   const [isProcessing, setIsProcessing] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
+  // Initialize shared stream on mount
+  useEffect(() => {
+    const initializeStream = async () => {
+      try {
+        // Ensure shared stream is started
+        if (!isStreamInitialized) {
+          await startRecording();
+        }
+        // Note: Don't attach stream here - wait until camera modal opens
+        // This prevents the video from playing in the background
+      } catch (err) {
+        console.warn('Could not initialize shared stream:', err);
+        setError('Unable to access camera. Please ensure permissions are granted.');
+      }
+    };
+
+    initializeStream();
+  }, [isStreamInitialized, startRecording]);
+
+  // Attach stream to video element when camera modal opens
+  useEffect(() => {
+    if (isCameraOpen && videoRef.current) {
+      const sharedStream = getSharedStream();
+      if (sharedStream) {
+        videoRef.current.srcObject = sharedStream;
+        videoRef.current.onloadedmetadata = () => {
+          setIsCameraReady(true);
+        };
+      } else {
+        setError('Camera stream not available. Please ensure permissions are granted.');
+      }
+    } else if (!isCameraOpen) {
+      // Reset camera ready state when modal closes
+      setIsCameraReady(false);
+    }
+  }, [isCameraOpen, getSharedStream]);
+
   // Combined error state
-  const error = cameraError || uploadError;
+  const combinedError = error || uploadError;
+
+  /**
+   * Open camera for selfie capture - uses shared stream
+   */
+  const openCamera = () => {
+    setUploadError(null);
+    setError(null);
+    setIsCameraOpen(true);
+  };
+
+  /**
+   * Close camera view - stream remains active for recording
+   */
+  const closeCamera = () => {
+    setIsCameraOpen(false);
+    setIsCameraReady(false);
+    // Don't stop the stream, just hide the camera view
+    // The shared stream continues recording in the background
+  };
 
   /**
    * Capture full photo from video stream
@@ -52,29 +99,11 @@ export const useSelfiePage = () => {
       const imageUrl = URL.createObjectURL(blob);
 
       setSelfieImage({ imageFile: file, imageUrl });
-      stopCamera();
+      closeCamera(); // Close camera view but keep stream active
     } catch (err) {
       console.error('Capture error:', err);
-      setCameraError('Failed to capture photo. Please try again.');
+      setError('Failed to capture photo. Please try again.');
     }
-  };
-
-  /**
-   * Open camera for selfie capture
-   */
-  const openCamera = () => {
-    setUploadError(null);
-    setCameraError(null);
-    startCamera();
-  };
-
-  /**
-   * Close camera
-   */
-  const closeCamera = () => {
-    stopCamera();
-    setUploadError(null);
-    setCameraError(null);
   };
 
   /**
@@ -88,13 +117,13 @@ export const useSelfiePage = () => {
   };
 
   /**
-   * Retake photo - reset image and restart camera
+   * Retake photo - reset image and reopen camera
    */
   const retakePhoto = async () => {
     removeImage(); // This cleans up the object URL
     setUploadError(null);
-    setCameraError(null);
-    await openCamera();
+    setError(null);
+    openCamera(); // Open camera view (stream is already active)
   };
 
   /**
@@ -147,7 +176,7 @@ export const useSelfiePage = () => {
     isCameraOpen,
     isCameraReady,
     isProcessing,
-    error,
+    error: combinedError,
     videoRef,
     openCamera,
     closeCamera,

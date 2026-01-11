@@ -5,27 +5,19 @@ import { generateOtp } from './utils';
 import { uploadOtpVideo } from '../../services/api/otpVideo';
 import { useSessionValidation } from '../../utils/hooks/useSessionValidation';
 import { validateSession } from '../../utils/session';
-import { useCamera } from '../../utils/hooks/useCamera';
+import { useSessionRecording } from '../../services/sessionRecording/context';
 
 export const useOtpPage = () => {
   const navigate = useNavigate();
   
   // Shared hooks
   useSessionValidation(); // Auto-validates on mount
-  const {
-    streamRef,
-    videoRef,
-    isCameraReady,
-    error: cameraError,
-    startCamera,
-    stopCamera,
-    setError: setCameraError,
-  } = useCamera({
-    facingMode: 'user',
-    width: { ideal: 1280 },
-    height: { ideal: 720 },
-    audio: true,
-  });
+  const { getSharedStream, isStreamInitialized, startRecording: startSessionRecording } = useSessionRecording();
+
+  // Use shared stream for video element
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [isCameraReady, setIsCameraReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Page-specific state
   const [otp, setOtp] = useState<string>('');
@@ -36,43 +28,65 @@ export const useOtpPage = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
-  // Refs for recording
+  // Refs for recording (local recording for OTP video)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Combined error state
-  const error = cameraError || uploadError;
+  const combinedError = error || uploadError;
 
-  // Initialize OTP and start camera on component mount (session validation handled by hook)
+  // Initialize OTP and attach shared stream on component mount
   useEffect(() => {
-    setOtp(generateOtp());
-    startCamera();
+    const initializeStream = async () => {
+      try {
+        setOtp(generateOtp());
+        
+        // Ensure shared stream is started
+        if (!isStreamInitialized) {
+          await startSessionRecording();
+        }
+        
+        // Attach shared stream to video element
+        const sharedStream = getSharedStream();
+        if (sharedStream && videoRef.current) {
+          videoRef.current.srcObject = sharedStream;
+          videoRef.current.onloadedmetadata = () => {
+            setIsCameraReady(true);
+          };
+        }
+      } catch (err) {
+        console.warn('Could not initialize shared stream:', err);
+        setError('Unable to access camera. Please ensure permissions are granted.');
+      }
+    };
 
-    // Cleanup function
+    initializeStream();
+
+    // Cleanup function - don't stop the shared stream, just clear timer
     return () => {
-      stopCamera();
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
     };
-  }, []);
+  }, [isStreamInitialized, startSessionRecording, getSharedStream]);
 
   /**
-   * Start recording video and audio from the camera stream
+   * Start recording video and audio from the shared camera stream
    * Collects chunks of video data as they become available
    */
   const startRecording = () => {
-    if (!streamRef.current) {
-      setCameraError('Camera not available. Please refresh and try again.');
+    const sharedStream = getSharedStream();
+    if (!sharedStream) {
+      setError('Camera not available. Please refresh and try again.');
       return;
     }
 
     // Reset chunks array for new recording
     chunksRef.current = [];
     
-    // Create MediaRecorder with WebM format 
-    const mediaRecorder = new MediaRecorder(streamRef.current, {
+    // Create MediaRecorder with WebM format using shared stream
+    const mediaRecorder = new MediaRecorder(sharedStream, {
       mimeType: 'video/webm;codecs=vp9,opus',
     });
 
@@ -132,8 +146,9 @@ export const useOtpPage = () => {
   };
 
   /**
-   * Reset recording state and restart camera for a new recording
+   * Reset recording state for a new recording
    * Cleans up previous video blob and URL to prevent memory leaks
+   * Stream remains active - no need to restart it
    */
   const retakeVideo = async () => {
     // Revoke object URL to free memory
@@ -144,12 +159,17 @@ export const useOtpPage = () => {
     setVideoUrl(null);
     setRecordingTime(0);
     setUploadError(null);
-    setCameraError(null);
+    setError(null);
     setRecordingStatus('idle');
 
-    // Restart camera using existing helper functions
-    stopCamera();
-    await startCamera();
+    // Ensure shared stream is attached to video element
+    const sharedStream = getSharedStream();
+    if (sharedStream && videoRef.current) {
+      videoRef.current.srcObject = sharedStream;
+      videoRef.current.onloadedmetadata = () => {
+        setIsCameraReady(true);
+      };
+    }
   };
 
   /**
@@ -205,8 +225,7 @@ export const useOtpPage = () => {
       const response = await uploadOtpVideo(sessionId, otp, videoBlob, latitude, longitude);
 
       if (response.success) {
-        // Release camera resources before navigating away
-        stopCamera();
+        // Navigate away - shared stream continues recording
         navigate('/verify/selfie');
       } else {
         setUploadError(response.message || 'Failed to upload video');
@@ -230,7 +249,7 @@ export const useOtpPage = () => {
     videoUrl,
     recordingTime,
     isProcessing,
-    error,
+    error: combinedError,
     isCameraReady,
     videoRef,
     startRecording,

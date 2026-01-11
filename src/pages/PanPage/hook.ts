@@ -5,31 +5,30 @@ import { uploadPanCardImages } from '../../services/api/panCard';
 import { useSessionRecording } from '../../services/sessionRecording/context';
 import { useSessionValidation } from '../../utils/hooks/useSessionValidation';
 import { validateSession } from '../../utils/session';
-import { useCamera } from '../../utils/hooks/useCamera';
 import { capturePhotoFromVideo } from '../../utils/camera';
 
 export const usePanPage = () => {
   const navigate = useNavigate();
-  const { isSessionRecording, startRecording } = useSessionRecording();
+  const { 
+    isSessionRecording, 
+    startRecording, 
+    getSharedStream, 
+    pauseRecording, 
+    resumeRecording,
+    isStreamInitialized 
+  } = useSessionRecording();
   useSessionValidation(); // Auto-validates on mount
   
-  // Camera hook with back camera for document capture
-  const {
-    videoRef,
-    isCameraReady,
-    isCameraOpen,
-    error: cameraError,
-    startCamera,
-    stopCamera,
-    setError: setCameraError,
-  } = useCamera({
-    facingMode: 'environment',
-    width: { ideal: 1920 },
-    height: { ideal: 1080 },
-    audio: false,
-  });
+  // Use shared stream for video element (front camera)
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [isCameraReady, setIsCameraReady] = useState(false);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Temporary stream for back camera document capture
+  const temporaryStreamRef = useRef<MediaStream | null>(null);
+  const isUsingBackCameraRef = useRef(false);
 
-  // Page-specific state
   const [panImages, setPanImages] = useState<PanImages>({ 
     front: { file: null, url: null }, 
     back: { file: null, url: null } 
@@ -37,41 +36,88 @@ export const usePanPage = () => {
   const [activeSide, setActiveSide] = useState<'front' | 'back' | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
-
-  // Refs
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const sessionRecordingStartedRef = useRef(false);
 
-  // Combined error state
-  const error = cameraError || uploadError;
-
-  // Start session recording on component mount 
+  // Ensure shared stream is started and attach to video element
   useEffect(() => {
-    // Start session recording immediately when page loads for audit purposes
-    const startSessionRecording = async () => {
-      if (!sessionRecordingStartedRef.current && !isSessionRecording) {
-        try {
-          const recordingStream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
-            audio: true,
-          });
-          startRecording(recordingStream);
-          sessionRecordingStartedRef.current = true;
-          console.log('Session recording started on page load');
-        } catch (err) {
-          console.warn('Could not start session recording:', err);
+    const initializeSharedStream = async () => {
+      try {
+        // Start shared stream if not already initialized
+        if (!isStreamInitialized) {
+          await startRecording();
         }
+        
+        // Attach shared stream to video element (front camera)
+        const sharedStream = getSharedStream();
+        if (sharedStream && videoRef.current && !isUsingBackCameraRef.current) {
+          videoRef.current.srcObject = sharedStream;
+          videoRef.current.onloadedmetadata = () => {
+            setIsCameraReady(true);
+          };
+        }
+      } catch (err) {
+        console.warn('Could not initialize shared stream:', err);
+        setError('Unable to access camera. Please ensure permissions are granted.');
       }
     };
 
-    startSessionRecording();
-  }, [isSessionRecording, startRecording]);
+    initializeSharedStream();
+  }, [isStreamInitialized, startRecording, getSharedStream]);
 
-  /**
-   * Request access to back camera (environment) for document capture
-   */
+  // Start temporary back camera stream for document capture
   const startCameraForCapture = async () => {
-    await startCamera();
+    try {
+      // Pause session recording video track
+      pauseRecording();
+      
+      // Create temporary back camera stream
+      const backCameraStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
+        audio: false,
+      });
+      
+      temporaryStreamRef.current = backCameraStream;
+      isUsingBackCameraRef.current = true;
+      
+      if (videoRef.current) {
+        videoRef.current.srcObject = backCameraStream;
+        videoRef.current.onloadedmetadata = () => {
+          setIsCameraReady(true);
+        };
+      }
+      setIsCameraOpen(true);
+      setError(null);
+      console.log('Temporary back camera stream started for document capture');
+    } catch (err) {
+      console.error('Camera error:', err);
+      setError('Unable to access back camera. Please ensure permissions are granted.');
+      resumeRecording(); // Resume if failed
+    }
+  };
+
+  const stopCamera = () => {
+    // Stop temporary back camera stream
+    if (temporaryStreamRef.current) {
+      temporaryStreamRef.current.getTracks().forEach(track => track.stop());
+      temporaryStreamRef.current = null;
+      isUsingBackCameraRef.current = false;
+      console.log('Temporary back camera stream stopped');
+    }
+    
+    // Resume session recording
+    resumeRecording();
+    
+    // Reattach shared stream to video element
+    const sharedStream = getSharedStream();
+    if (sharedStream && videoRef.current) {
+      videoRef.current.srcObject = sharedStream;
+      videoRef.current.onloadedmetadata = () => {
+        setIsCameraReady(true);
+      };
+    }
+    
+    setIsCameraOpen(false);
+    setIsCameraReady(false);
   };
 
   /**
@@ -99,7 +145,7 @@ export const usePanPage = () => {
       setActiveSide(null);
     } catch (err) {
       console.error('Capture error:', err);
-      setCameraError('Failed to capture photo. Please try again.');
+      setError('Failed to capture photo. Please try again.');
     }
   };
 
@@ -138,7 +184,7 @@ export const usePanPage = () => {
   const openUploadOptions = (side: 'front' | 'back') => {
     setActiveSide(side);
     setUploadError(null);
-    setCameraError(null);
+    setError(null);
   };
 
   /**
@@ -159,7 +205,7 @@ export const usePanPage = () => {
     stopCamera();
     setActiveSide(null);
     setUploadError(null);
-    setCameraError(null);
+    setError(null);
   };
 
   /**
@@ -227,13 +273,16 @@ export const usePanPage = () => {
   // Determine if continue button should be enabled
   const canContinue = panImages.front.file !== null && panImages.back.file !== null;
 
+  // Combined error state
+  const combinedError = error || uploadError;
+
   return {
     panImages,
     activeSide,
     isCameraOpen,
     isCameraReady,
     isProcessing,
-    error,
+    error: combinedError,
     videoRef,
     fileInputRef,
     openUploadOptions,
