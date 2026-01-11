@@ -16,9 +16,9 @@ export const MatchIndicator: React.FC<MatchIndicatorProps> = ({
   return (
     <div className="grid grid-cols-3 gap-4 items-center py-3 border-b border-slate-700/50">
       <div className="text-slate-400 text-sm font-medium">{label}</div>
-      <div className="text-white text-sm">{value1 || 'N/A'}</div>
+      <div className="text-white text-sm">{value1 || 'No data'}</div>
       <div className="flex items-center gap-3">
-        <div className="text-white text-sm">{value2 || 'N/A'}</div>
+        <div className="text-white text-sm">{value2 || 'No data'}</div>
         <div
           className={`w-6 h-6 rounded-full flex items-center justify-center ${
             match

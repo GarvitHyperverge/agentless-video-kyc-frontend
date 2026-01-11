@@ -1,19 +1,10 @@
 import React from 'react';
 import { useSessionDetail } from './hook';
-import { RejectModal } from './RejectModal';
-import { FlagModal } from './FlagModal';
 import { StatusBadge } from '../../components/StatusBadge';
 import { MatchIndicator } from '../../components/MatchIndicator';
 import { ImageLightbox } from '../../components/ImageLightbox';
 import { VideoPlayer } from '../../components/VideoPlayer';
 import { setAuditorLoggedOut, getAuditorUsername } from '../../utils/auth';
-import {
-  getPanFrontImageUrl,
-  getPanBackImageUrl,
-  getSelfieImageUrl,
-  getOtpVideoUrl,
-  getSessionVideoUrl,
-} from '../../services/api/auditSessions';
 
 const SessionDetailPage: React.FC = () => {
   const {
@@ -21,14 +12,6 @@ const SessionDetailPage: React.FC = () => {
     loading,
     error,
     successMessage,
-    isUpdating,
-    showRejectModal,
-    showFlagModal,
-    setShowRejectModal,
-    setShowFlagModal,
-    handleApprove,
-    handleReject,
-    handleFlag,
     navigate,
   } = useSessionDetail();
 
@@ -52,6 +35,13 @@ const SessionDetailPage: React.FC = () => {
       return 'text-red-400';
     }
     return 'text-slate-400';
+  };
+
+  const formatFieldValue = (value: string | number | null | undefined): string => {
+    if (value === null || value === undefined || value === '') {
+      return 'No data';
+    }
+    return String(value);
   };
 
   if (loading) {
@@ -106,6 +96,8 @@ const SessionDetailPage: React.FC = () => {
     faceMatchResult,
     selfieValidation,
     sessionMetadata,
+    verificationInputs,
+    mediaPaths,
   } = sessionData;
 
   return (
@@ -234,7 +226,7 @@ const SessionDetailPage: React.FC = () => {
               <div>
                 <label className="text-slate-400 text-sm">External Transaction ID</label>
                 <div className="text-white text-sm mt-1">
-                  {session.external_txn_id}
+                  {formatFieldValue(session.external_txn_id)}
                 </div>
               </div>
               <div>
@@ -271,31 +263,31 @@ const SessionDetailPage: React.FC = () => {
                 <div>
                   <label className="text-slate-400 text-sm">PAN Number</label>
                   <div className="text-white text-sm mt-1">
-                    {businessPartnerPanData.pan_number}
+                    {formatFieldValue(businessPartnerPanData.pan_number)}
                   </div>
                 </div>
                 <div>
                   <label className="text-slate-400 text-sm">Full Name</label>
                   <div className="text-white text-sm mt-1">
-                    {businessPartnerPanData.full_name}
+                    {formatFieldValue(businessPartnerPanData.full_name)}
                   </div>
                 </div>
                 <div>
                   <label className="text-slate-400 text-sm">Father Name</label>
                   <div className="text-white text-sm mt-1">
-                    {businessPartnerPanData.father_name}
+                    {formatFieldValue(businessPartnerPanData.father_name)}
                   </div>
                 </div>
                 <div>
                   <label className="text-slate-400 text-sm">Date of Birth</label>
                   <div className="text-white text-sm mt-1">
-                    {businessPartnerPanData.date_of_birth}
+                    {formatFieldValue(businessPartnerPanData.date_of_birth)}
                   </div>
                 </div>
                 <div>
                   <label className="text-slate-400 text-sm">Source Party</label>
                   <div className="text-white text-sm mt-1">
-                    {businessPartnerPanData.source_party}
+                    {formatFieldValue(businessPartnerPanData.source_party)}
                   </div>
                 </div>
               </div>
@@ -310,81 +302,83 @@ const SessionDetailPage: React.FC = () => {
                 <div>
                   <label className="text-slate-400 text-sm">ID Number</label>
                   <div className="text-white text-sm mt-1">
-                    {cardIdValidation.id_number}
+                    {formatFieldValue(cardIdValidation.id_number)}
                   </div>
                 </div>
                 <div>
                   <label className="text-slate-400 text-sm">Full Name</label>
                   <div className="text-white text-sm mt-1">
-                    {cardIdValidation.full_name}
+                    {formatFieldValue(cardIdValidation.full_name)}
                   </div>
                 </div>
                 <div>
                   <label className="text-slate-400 text-sm">Date of Birth</label>
                   <div className="text-white text-sm mt-1">
-                    {cardIdValidation.date_of_birth}
+                    {formatFieldValue(cardIdValidation.date_of_birth)}
                   </div>
                 </div>
                 <div>
                   <label className="text-slate-400 text-sm">Father Name</label>
                   <div className="text-white text-sm mt-1">
-                    {cardIdValidation.father_name}
+                    {formatFieldValue(cardIdValidation.father_name)}
                   </div>
                 </div>
               </div>
             </div>
 
             {/* Field Match Results */}
-            <div>
-              <h3 className="text-lg font-semibold text-white mb-4">
-                Field Match Results
-              </h3>
-              <div className="bg-slate-900/50 rounded-lg p-4">
-                <div className="mb-4 grid grid-cols-3 gap-4 text-xs text-slate-400 font-medium">
-                  <div>Field</div>
-                  <div>Business Partner</div>
-                  <div>Extracted Data</div>
+            {fieldMatchResults && (
+              <div>
+                <h3 className="text-lg font-semibold text-white mb-4">
+                  Field Match Results
+                </h3>
+                <div className="bg-slate-900/50 rounded-lg p-4">
+                  <div className="mb-4 grid grid-cols-3 gap-4 text-xs text-slate-400 font-medium">
+                    <div>Field</div>
+                    <div>Business Partner</div>
+                    <div>Extracted Data</div>
+                  </div>
+                  <MatchIndicator
+                    label="Name"
+                    value1={businessPartnerPanData.full_name}
+                    value2={cardIdValidation.full_name}
+                    match={fieldMatchResults.results.name.match}
+                  />
+                  <MatchIndicator
+                    label="Date of Birth"
+                    value1={businessPartnerPanData.date_of_birth}
+                    value2={cardIdValidation.date_of_birth}
+                    match={fieldMatchResults.results.dateOfBirth.match}
+                  />
+                  <MatchIndicator
+                    label="PAN Number"
+                    value1={businessPartnerPanData.pan_number}
+                    value2={cardIdValidation.id_number}
+                    match={fieldMatchResults.results.idNumber.match}
+                  />
+                  <MatchIndicator
+                    label="Father Name"
+                    value1={businessPartnerPanData.father_name}
+                    value2={cardIdValidation.father_name}
+                    match={fieldMatchResults.results.fatherName.match}
+                  />
                 </div>
-                <MatchIndicator
-                  label="Name"
-                  value1={businessPartnerPanData.full_name}
-                  value2={cardIdValidation.full_name}
-                  match={fieldMatchResults.results.name.match}
-                />
-                <MatchIndicator
-                  label="Date of Birth"
-                  value1={businessPartnerPanData.date_of_birth}
-                  value2={cardIdValidation.date_of_birth}
-                  match={fieldMatchResults.results.dateOfBirth.match}
-                />
-                <MatchIndicator
-                  label="PAN Number"
-                  value1={businessPartnerPanData.pan_number}
-                  value2={cardIdValidation.id_number}
-                  match={fieldMatchResults.results.idNumber.match}
-                />
-                <MatchIndicator
-                  label="Father Name"
-                  value1={businessPartnerPanData.father_name}
-                  value2={cardIdValidation.father_name}
-                  match={fieldMatchResults.results.fatherName.match}
-                />
-              </div>
-              <div className="mt-4">
-                <div
-                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg ${
-                    fieldMatchResults.allMatched
-                      ? 'bg-green-500/20 text-green-300 border border-green-500/30'
-                      : 'bg-red-500/20 text-red-300 border border-red-500/30'
-                  }`}
-                >
-                  <span className="font-medium">Overall Verification Status:</span>
-                  <span>
-                    {fieldMatchResults.allMatched ? 'PASSED' : 'FAILED'}
-                  </span>
+                <div className="mt-4">
+                  <div
+                    className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg ${
+                      fieldMatchResults.allMatched
+                        ? 'bg-green-500/20 text-green-300 border border-green-500/30'
+                        : 'bg-red-500/20 text-red-300 border border-red-500/30'
+                    }`}
+                  >
+                    <span className="font-medium">Overall Verification Status:</span>
+                    <span>
+                      {fieldMatchResults.allMatched ? 'PASSED' : 'FAILED'}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Section 3: Images */}
@@ -396,7 +390,7 @@ const SessionDetailPage: React.FC = () => {
                   PAN Card Front
                 </label>
                 <ImageLightbox
-                  src={getPanFrontImageUrl(session.session_uid)}
+                  src={mediaPaths.images.panFront}
                   alt="PAN Front"
                   className="w-full h-48 object-cover"
                 />
@@ -406,7 +400,7 @@ const SessionDetailPage: React.FC = () => {
                   PAN Card Back
                 </label>
                 <ImageLightbox
-                  src={getPanBackImageUrl(session.session_uid)}
+                  src={mediaPaths.images.panBack}
                   alt="PAN Back"
                   className="w-full h-48 object-cover"
                 />
@@ -414,7 +408,7 @@ const SessionDetailPage: React.FC = () => {
               <div>
                 <label className="text-slate-400 text-sm mb-2 block">Selfie</label>
                 <ImageLightbox
-                  src={getSelfieImageUrl(session.session_uid)}
+                  src={mediaPaths.images.selfie}
                   alt="Selfie"
                   className="w-full h-48 object-cover"
                 />
@@ -438,26 +432,26 @@ const SessionDetailPage: React.FC = () => {
                     <label className="text-slate-400 text-sm">Match Value</label>
                     <div
                       className={`text-sm font-medium mt-1 ${getValidationColor(
-                        faceMatchResult.match_value
+                        faceMatchResult.match_value || ''
                       )}`}
                     >
-                      {faceMatchResult.match_value}
+                      {formatFieldValue(faceMatchResult.match_value)}
                     </div>
                   </div>
                   <div>
                     <label className="text-slate-400 text-sm">Confidence Score</label>
                     <div className="text-white text-sm mt-1">
-                      {faceMatchResult.match_confidence}
+                      {formatFieldValue(faceMatchResult.match_confidence)}
                     </div>
                   </div>
                   <div>
                     <label className="text-slate-400 text-sm">Action</label>
                     <div
                       className={`text-sm font-medium mt-1 ${getValidationColor(
-                        faceMatchResult.action
+                        faceMatchResult.action || ''
                       )}`}
                     >
-                      {faceMatchResult.action}
+                      {formatFieldValue(faceMatchResult.action)}
                     </div>
                   </div>
                 </div>
@@ -473,10 +467,10 @@ const SessionDetailPage: React.FC = () => {
                     <label className="text-slate-400 text-sm">Live Face Value</label>
                     <div
                       className={`text-sm font-medium mt-1 ${getValidationColor(
-                        selfieValidation.live_face_value
+                        selfieValidation.live_face_value || ''
                       )}`}
                     >
-                      {selfieValidation.live_face_value}
+                      {formatFieldValue(selfieValidation.live_face_value)}
                     </div>
                   </div>
                   <div>
@@ -484,17 +478,17 @@ const SessionDetailPage: React.FC = () => {
                       Live Face Confidence
                     </label>
                     <div className="text-white text-sm mt-1">
-                      {selfieValidation.live_face_confidence}
+                      {formatFieldValue(selfieValidation.live_face_confidence)}
                     </div>
                   </div>
                   <div>
                     <label className="text-slate-400 text-sm">Action</label>
                     <div
                       className={`text-sm font-medium mt-1 ${getValidationColor(
-                        selfieValidation.action
+                        selfieValidation.action || ''
                       )}`}
                     >
-                      {selfieValidation.action}
+                      {formatFieldValue(selfieValidation.action)}
                     </div>
                   </div>
                 </div>
@@ -509,7 +503,10 @@ const SessionDetailPage: React.FC = () => {
               <div>
                 <label className="text-slate-400 text-sm">Location</label>
                 <div className="text-white text-sm mt-1">
-                  {sessionMetadata.latitude}, {sessionMetadata.longitude}
+                  {sessionMetadata.latitude !== null && sessionMetadata.latitude !== undefined &&
+                   sessionMetadata.longitude !== null && sessionMetadata.longitude !== undefined
+                    ? `${sessionMetadata.latitude}, ${sessionMetadata.longitude}`
+                    : 'No data'}
                 </div>
                 <div className="mt-2 text-xs text-slate-500">
                   (Map integration can be added here)
@@ -607,13 +604,13 @@ const SessionDetailPage: React.FC = () => {
               <div>
                 <label className="text-slate-400 text-sm">IP Address</label>
                 <div className="text-white text-sm mt-1">
-                  {sessionMetadata.ip_address}
+                  {formatFieldValue(sessionMetadata.ip_address)}
                 </div>
               </div>
               <div>
                 <label className="text-slate-400 text-sm">Device Type</label>
                 <div className="text-white text-sm mt-1">
-                  {sessionMetadata.device_type}
+                  {formatFieldValue(sessionMetadata.device_type)}
                 </div>
               </div>
             </div>
@@ -623,99 +620,28 @@ const SessionDetailPage: React.FC = () => {
           <div className="bg-slate-800/50 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-2xl">
             <h2 className="text-2xl font-bold text-white mb-6">Videos</h2>
             <div className="grid md:grid-cols-2 gap-6">
+              <div>
+                <VideoPlayer
+                  src={mediaPaths.videos.otpVideo}
+                  title="OTP Video"
+                />
+                {verificationInputs.find((input) => input.input_type === 'OTP') && (
+                  <div className="mt-4 p-4 bg-slate-900/50 rounded-lg border border-slate-700">
+                    <label className="text-slate-400 text-sm block mb-2">OTP Value</label>
+                    <div className="text-white font-mono text-lg font-semibold">
+                      {formatFieldValue(verificationInputs.find((input) => input.input_type === 'OTP')?.input_value)}
+                    </div>
+                  </div>
+                )}
+              </div>
               <VideoPlayer
-                src={getOtpVideoUrl(session.session_uid)}
-                title="OTP Video"
-              />
-              <VideoPlayer
-                src={getSessionVideoUrl(session.session_uid)}
+                src={mediaPaths.videos.sessionRecording}
                 title="Session Recording"
               />
             </div>
           </div>
-
-          {/* Section 7: Actions */}
-          <div className="bg-slate-800/50 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-2xl">
-            <h2 className="text-2xl font-bold text-white mb-6">Actions</h2>
-            <div className="flex flex-wrap gap-4">
-              <button
-                onClick={handleApprove}
-                disabled={isUpdating || session.status === 'approved'}
-                className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
-                Approve
-              </button>
-              <button
-                onClick={() => setShowRejectModal(true)}
-                disabled={isUpdating || session.status === 'rejected'}
-                className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-                Reject
-              </button>
-              <button
-                onClick={() => setShowFlagModal(true)}
-                disabled={isUpdating || session.status === 'flagged'}
-                className="px-6 py-3 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9"
-                  />
-                </svg>
-                Flag
-              </button>
-            </div>
-          </div>
         </div>
       </div>
-
-      {/* Modals */}
-      <RejectModal
-        isOpen={showRejectModal}
-        onClose={() => setShowRejectModal(false)}
-        onConfirm={handleReject}
-        isUpdating={isUpdating}
-      />
-      <FlagModal
-        isOpen={showFlagModal}
-        onClose={() => setShowFlagModal(false)}
-        onConfirm={handleFlag}
-        isUpdating={isUpdating}
-      />
     </div>
   );
 };

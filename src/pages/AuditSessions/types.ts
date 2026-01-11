@@ -88,6 +88,24 @@ export interface SessionDetails {
     created_at?: string;
     updated_at?: string;
   };
+  verificationInputs: Array<{
+    id: number;
+    session_uid: string;
+    input_type: string;
+    input_value: string;
+    created_at: string;
+  }>;
+  mediaPaths: {
+    images: {
+      panFront: string;
+      panBack: string;
+      selfie: string;
+    };
+    videos: {
+      otpVideo: string;
+      sessionRecording: string;
+    };
+  };
 }
 
 export interface SessionDetailsResponse {
