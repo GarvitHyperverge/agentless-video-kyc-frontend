@@ -44,8 +44,8 @@ export const usePanPage = () => {
 
   // Use upload handler hook
   const { isProcessing, uploadError, setUploadError, handleUpload } = useUploadHandler({
-    uploadFn: (sessionId: string) => uploadPanCardImages({
-      sessionId,
+    uploadFn: (token: string) => uploadPanCardImages({
+      token,
       frontImageFile: panImages.front.file!,
       backImageFile: panImages.back.file!,
     }),

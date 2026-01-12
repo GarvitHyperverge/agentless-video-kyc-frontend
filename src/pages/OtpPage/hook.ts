@@ -32,7 +32,7 @@ export const useOtpPage = () => {
 
   // Use upload handler hook
   const { isProcessing, uploadError, setUploadError, handleUpload } = useUploadHandler({
-    uploadFn: (sessionId: string) => uploadOtpVideo(sessionId, otp, videoBlob!),
+    uploadFn: (token: string) => uploadOtpVideo(token, otp, videoBlob!),
     onBeforeNavigate: () => {
       revokeObjectUrl(videoUrl);
     },

@@ -26,7 +26,7 @@ export const useSelfiePage = () => {
 
   // Use upload handler hook
   const { isProcessing, uploadError, setUploadError, handleUpload } = useUploadHandler({
-    uploadFn: (sessionId: string) => uploadSelfie({ sessionId, imageFile: selfieImage.imageFile! }),
+    uploadFn: (token: string) => uploadSelfie({ token, imageFile: selfieImage.imageFile! }),
     onBeforeNavigate: () => {
       if (selfieImage.imageUrl) {
         revokeObjectUrl(selfieImage.imageUrl);

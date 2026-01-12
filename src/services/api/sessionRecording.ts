@@ -12,12 +12,12 @@ interface SessionRecordingUploadResponse {
 
 /**
  * Upload session recording video to backend using FormData
- * @param sessionId - Session ID from localStorage
+ * @param token - Token from localStorage
  * @param videoBlob - Video blob from MediaRecorder
  * @returns Upload response with video path
  */
 export const uploadSessionRecording = async (
-  sessionId: string,
+  token: string,
   videoBlob: Blob
 ): Promise<SessionRecordingUploadResponse> => {
   // Check file size (10 min recording ≈ 10-50MB, max 100MB for safety)
@@ -28,7 +28,7 @@ export const uploadSessionRecording = async (
   // Ensure blob has correct MIME type for backend validation
   const videoFile = new File([videoBlob], 'session_recording.webm', { type: 'video/webm' });
   
-  const formData = createUploadFormData(sessionId, {
+  const formData = createUploadFormData(token, {
     video: videoFile,
   });
 

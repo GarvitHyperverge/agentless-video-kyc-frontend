@@ -10,22 +10,22 @@ import {
 } from './utils';
 import { saveSessionMetadata } from '../../services/api/sessionMetadata';
 import { useSessionRecording } from '../../services/sessionRecording/context';
-import { setSessionId, validateSession } from '../../utils/session';
+import { setToken, validateSession } from '../../utils/session';
 
 export const useLanding = () => {
   const navigate = useNavigate();
-  const { sessionId } = useParams<{ sessionId: string }>();
+  const { token } = useParams<{ token: string }>();
   const [showPermissionsModal, setShowPermissionsModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { startRecording } = useSessionRecording();
 
   useEffect(() => {
-    if (sessionId) {
-      setSessionId(sessionId);
+    if (token) {
+      setToken(token);
     } else {
-      alert('No session found. Please use a valid verification link.');
+      alert('No token found. Please use a valid verification link.');
     }
-  }, [sessionId]);
+  }, [token]);
 
   const handleStartVerification = () => {
     try {
@@ -82,7 +82,7 @@ export const useLanding = () => {
 
       // Call API to save session metadata
       const response = await saveSessionMetadata({
-        sessionUid: sessionId!,
+        token: token!,
         ...metadata,
       });
 

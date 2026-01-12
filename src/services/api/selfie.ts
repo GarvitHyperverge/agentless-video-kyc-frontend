@@ -3,7 +3,7 @@ import { validateFileSize } from '../../utils/fileValidation';
 import { createUploadFormData } from '../../utils/formData';
 
 interface SelfieUploadPayload {
-  sessionId: string;
+  token: string;
   imageFile: File;
 }
 
@@ -26,7 +26,7 @@ export const uploadSelfie = async (payload: SelfieUploadPayload): Promise<Selfie
   validateFileSize(payload.imageFile, MAX_FILE_SIZE, 'Image');
 
   // Create FormData for multipart upload
-  const formData = createUploadFormData(payload.sessionId, {
+  const formData = createUploadFormData(payload.token, {
     image: payload.imageFile,
   });
 

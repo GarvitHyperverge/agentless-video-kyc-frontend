@@ -1,28 +1,28 @@
 /**
- * Get session ID from localStorage
- * @returns session ID or null if not found
+ * Get token from localStorage
+ * @returns token or null if not found
  */
-export const getSessionId = (): string | null => {
-  return localStorage.getItem('session_id');
+export const getToken = (): string | null => {
+  return localStorage.getItem('token');
 };
 
 /**
- * Set session ID in localStorage
- * @param sessionId - Session ID to store
+ * Set token in localStorage
+ * @param token - Token to store
  */
-export const setSessionId = (sessionId: string): void => {
-  localStorage.setItem('session_id', sessionId);
+export const setToken = (token: string): void => {
+  localStorage.setItem('token', token);
 };
 
 /**
- * Validate session exists with error handling
- * @returns session ID
- * @throws Error with descriptive message if session not found
+ * Validate token exists with error handling
+ * @returns token
+ * @throws Error with descriptive message if token not found
  */
 export const validateSession = (): string => {
-  const sessionId = localStorage.getItem('session_id');
-  if (!sessionId) {
+  const token = localStorage.getItem('token');
+  if (!token) {
     throw new Error('Session not found. Please start the verification process again.');
   }
-  return sessionId;
+  return token;
 };
