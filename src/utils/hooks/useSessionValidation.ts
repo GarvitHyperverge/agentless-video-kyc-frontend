@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getSessionId, validateSession } from '../session';
+import { getToken, validateSession } from '../session';
 
 /**
  * Hook that validates session on mount and redirects if missing
@@ -10,12 +10,12 @@ export const useSessionValidation = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const sessionId = getSessionId();
-    if (!sessionId) {
+    const token = getToken();
+    if (!token) {
       alert('Session not found. Please start the verification process again.');
       navigate('/audit/sessions');
     }
   }, [navigate]);
 
-  return { getSessionId, validateSession };
+  return { getToken, validateSession };
 };

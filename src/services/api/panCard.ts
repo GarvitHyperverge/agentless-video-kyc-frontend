@@ -3,7 +3,7 @@ import { validateFileSize } from '../../utils/fileValidation';
 import { createUploadFormData } from '../../utils/formData';
 
 interface PanCardUploadPayload {
-  sessionId: string;
+  token: string;
   frontImageFile: File;
   backImageFile: File;
 }
@@ -29,7 +29,7 @@ export const uploadPanCardImages = async (payload: PanCardUploadPayload): Promis
   validateFileSize(payload.backImageFile, MAX_FILE_SIZE, 'Image');
 
   // Create FormData for multipart upload
-  const formData = createUploadFormData(payload.sessionId, {
+  const formData = createUploadFormData(payload.token, {
     front_image: payload.frontImageFile,
     back_image: payload.backImageFile,
   });

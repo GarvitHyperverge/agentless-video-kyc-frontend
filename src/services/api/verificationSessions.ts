@@ -1,7 +1,7 @@
 import { BACKEND_URL } from './config';
 
 interface CompleteVerificationSessionPayload {
-  sessionId: string;
+  token: string;
 }
 
 interface CompleteVerificationSessionResponse {
@@ -32,7 +32,7 @@ export const completeVerificationSession = async (
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      session_id: payload.sessionId,
+      token: payload.token,
     }),
   });
 

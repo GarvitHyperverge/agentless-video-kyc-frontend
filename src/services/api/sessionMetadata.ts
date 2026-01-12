@@ -1,7 +1,7 @@
 import { BACKEND_URL } from './config';
 
 interface SessionMetadataPayload {
-  sessionUid: string;
+  token: string;
   latitude: number;
   longitude: number;
   cameraPermission: boolean;
@@ -37,7 +37,7 @@ export const saveSessionMetadata = async (payload: SessionMetadataPayload): Prom
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      session_id: payload.sessionUid,
+      token: payload.token,
       latitude: payload.latitude,
       longitude: payload.longitude,
       camera_permission: payload.cameraPermission,

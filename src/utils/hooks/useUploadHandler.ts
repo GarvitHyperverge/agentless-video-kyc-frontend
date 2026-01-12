@@ -4,9 +4,9 @@ import { validateSession } from '../session';
 
 interface UseUploadHandlerOptions<T> {
   /**
-   * Upload function that takes sessionId and returns a response
+   * Upload function that takes token and returns a response
    */
-  uploadFn: (sessionId: string, ...args: any[]) => Promise<T>;
+  uploadFn: (token: string, ...args: any[]) => Promise<T>;
   /**
    * Callback to clean up resources before navigation (e.g., revoke object URLs)
    */
@@ -41,9 +41,9 @@ export const useUploadHandler = <T extends { success: boolean; message?: string 
 
   const handleUpload = useCallback(
     async (...args: any[]) => {
-      let sessionId: string;
+      let token: string;
       try {
-        sessionId = validateSession();
+        token = validateSession();
       } catch (err) {
         setUploadError('Session not found. Please start the verification process again.');
         return;
@@ -53,7 +53,7 @@ export const useUploadHandler = <T extends { success: boolean; message?: string 
       setUploadError(null);
 
       try {
-        const response = await uploadFn(sessionId, ...args);
+        const response = await uploadFn(token, ...args);
 
         if (response.success) {
           // Clean up resources before navigating

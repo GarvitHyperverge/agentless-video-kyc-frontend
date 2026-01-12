@@ -12,13 +12,13 @@ interface OtpVideoUploadResponse {
 
 /**
  * Upload OTP video to backend using FormData
- * @param sessionId - Session ID
+ * @param token - Token
  * @param otp - OTP code
  * @param videoBlob - Video blob from MediaRecorder
  * @returns Upload response with video path
  */
 export const uploadOtpVideo = async (
-  sessionId: string,
+  token: string,
   otp: string,
   videoBlob: Blob
 ): Promise<OtpVideoUploadResponse> => {
@@ -29,7 +29,7 @@ export const uploadOtpVideo = async (
   // Ensure blob has correct MIME type for backend validation
   const videoFile = new File([videoBlob], 'otp_video.webm', { type: 'video/webm' });
   
-  const formData = createUploadFormData(sessionId, {
+  const formData = createUploadFormData(token, {
     otp,
     video: videoFile,
   });

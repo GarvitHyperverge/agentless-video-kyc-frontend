@@ -140,11 +140,11 @@ export const SessionRecordingProvider: React.FC<{ children: React.ReactNode }> =
   }, [recordingStream]);
 
   const uploadRecording = useCallback(async (): Promise<boolean> => {
-    let sessionId: string;
+    let token: string;
     try {
-      sessionId = validateSession();
+      token = validateSession();
     } catch (err) {
-      console.error('No session ID found');
+      console.error('No token found');
       return false;
     }
 
@@ -158,7 +158,7 @@ export const SessionRecordingProvider: React.FC<{ children: React.ReactNode }> =
 
     try {
       console.log(`Uploading session recording: ${(blob.size / 1024 / 1024).toFixed(2)}MB`);
-      const response = await uploadSessionRecording(sessionId, blob);
+      const response = await uploadSessionRecording(token, blob);
       
       if (response.success) {
         console.log('Session recording uploaded successfully:', response.data.videoPath);

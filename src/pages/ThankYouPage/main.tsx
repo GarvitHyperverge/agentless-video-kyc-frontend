@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useSessionRecording } from '../../services/sessionRecording/context';
 import { completeVerificationSession } from '../../services/api/verificationSessions';
 import { useSessionValidation } from '../../utils/hooks/useSessionValidation';
-import { getSessionId, validateSession } from '../../utils/session';
+import { getToken, validateSession } from '../../utils/session';
 
 // Module-level flag that persists across component remounts (StrictMode)
 let hasStartedVerification = false;
@@ -21,11 +21,11 @@ const ThankYouPage: React.FC = () => {
     hasStartedVerification = true;
 
     const handleCompleteVerification = async () => {
-      let sessionId: string;
+      let token: string;
       try {
-        sessionId = validateSession();
+        token = validateSession();
       } catch (err) {
-        console.error('No session ID found');
+        console.error('No token found');
         setError('Session not found');
         return;
       }
@@ -42,7 +42,7 @@ const ThankYouPage: React.FC = () => {
         console.log('Session recording uploaded successfully');
         
         // Only complete verification session after successful upload
-        await completeVerificationSession({ sessionId });
+        await completeVerificationSession({ token });
         console.log('Verification session completed successfully');
         
         setIsUploadComplete(true);
@@ -197,7 +197,7 @@ const ThankYouPage: React.FC = () => {
         {/* Footer text */}
         {isUploadComplete && (
           <p className="text-slate-500 text-sm mt-6">
-            Reference ID: {getSessionId() || 'N/A'}
+            Reference ID: {getToken() || 'N/A'}
           </p>
         )}
       </div>

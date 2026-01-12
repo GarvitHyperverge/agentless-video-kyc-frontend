@@ -22,7 +22,7 @@ function App() {
         <Route path="/audit/login" element={<LoginPage />} />
         
         {/* User Verification Flow */}
-        <Route path="/verify/:sessionId" element={<LandingPage />} />
+        <Route path="/verify/:token" element={<LandingPage />} />
         <Route path="/verify/pan" element={<PanPage />} />
         <Route path="/verify/otp" element={<OtpPage />} />
         <Route path="/verify/selfie" element={<SelfiePage />} />
