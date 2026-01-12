@@ -26,12 +26,15 @@ export const uploadSelfie = async (payload: SelfieUploadPayload): Promise<Selfie
   validateFileSize(payload.imageFile, MAX_FILE_SIZE, 'Image');
 
   // Create FormData for multipart upload
-  const formData = createUploadFormData(payload.token, {
+  const formData = createUploadFormData({
     image: payload.imageFile,
   });
 
   const response = await fetch(`${BACKEND_URL}/selfie/upload`, {
     method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${payload.token}`,
+    },
     body: formData,
   });
 

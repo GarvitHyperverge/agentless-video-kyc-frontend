@@ -28,12 +28,15 @@ export const uploadSessionRecording = async (
   // Ensure blob has correct MIME type for backend validation
   const videoFile = new File([videoBlob], 'session_recording.webm', { type: 'video/webm' });
   
-  const formData = createUploadFormData(token, {
+  const formData = createUploadFormData({
     video: videoFile,
   });
 
   const response = await fetch(`${BACKEND_URL}/session-recording/upload`, {
     method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
     body: formData,
   });
 

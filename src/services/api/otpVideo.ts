@@ -29,13 +29,16 @@ export const uploadOtpVideo = async (
   // Ensure blob has correct MIME type for backend validation
   const videoFile = new File([videoBlob], 'otp_video.webm', { type: 'video/webm' });
   
-  const formData = createUploadFormData(token, {
+  const formData = createUploadFormData({
     otp,
     video: videoFile,
   });
 
   const response = await fetch(`${BACKEND_URL}/otp-video/upload`, {
     method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
     body: formData,
   });
 

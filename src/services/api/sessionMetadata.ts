@@ -35,9 +35,9 @@ export const saveSessionMetadata = async (payload: SessionMetadataPayload): Prom
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      'Authorization': `Bearer ${payload.token}`,
     },
     body: JSON.stringify({
-      token: payload.token,
       latitude: payload.latitude,
       longitude: payload.longitude,
       camera_permission: payload.cameraPermission,

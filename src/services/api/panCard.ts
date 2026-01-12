@@ -29,13 +29,16 @@ export const uploadPanCardImages = async (payload: PanCardUploadPayload): Promis
   validateFileSize(payload.backImageFile, MAX_FILE_SIZE, 'Image');
 
   // Create FormData for multipart upload
-  const formData = createUploadFormData(payload.token, {
+  const formData = createUploadFormData({
     front_image: payload.frontImageFile,
     back_image: payload.backImageFile,
   });
 
   const response = await fetch(`${BACKEND_URL}/pan-card`, {
     method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${payload.token}`,
+    },
     body: formData,
   });
 

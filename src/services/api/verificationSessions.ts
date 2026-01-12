@@ -30,10 +30,8 @@ export const completeVerificationSession = async (
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
+      'Authorization': `Bearer ${payload.token}`,
     },
-    body: JSON.stringify({
-      token: payload.token,
-    }),
   });
 
   if (!response.ok) {
