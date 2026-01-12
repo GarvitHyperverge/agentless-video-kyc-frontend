@@ -204,25 +204,8 @@ export const useOtpPage = () => {
     setUploadError(null);
 
     try {
-      // Get location from localStorage (stored during initial permission request on LandingPage)
-      const storedLatitude = localStorage.getItem('user_latitude');
-      const storedLongitude = localStorage.getItem('user_longitude');
-      
-      let latitude: number;
-      let longitude: number;
-      
-      if (storedLatitude && storedLongitude) {
-        latitude = parseFloat(storedLatitude);
-        longitude = parseFloat(storedLongitude);
-      } else {
-        // Fallback if location not found in localStorage
-        console.warn('Location not found in localStorage, using default values');
-        latitude = 0;
-        longitude = 0;
-      }
-
-      // Upload video with OTP, session ID, and geolocation to backend using FormData
-      const response = await uploadOtpVideo(sessionId, otp, videoBlob, latitude, longitude);
+      // Upload video with OTP and session ID to backend using FormData
+      const response = await uploadOtpVideo(sessionId, otp, videoBlob);
 
       if (response.success) {
         // Navigate away - shared stream continues recording

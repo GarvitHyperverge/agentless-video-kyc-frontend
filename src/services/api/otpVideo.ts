@@ -13,16 +13,12 @@ interface OtpVideoUploadResponse {
  * @param sessionId - Session ID
  * @param otp - OTP code
  * @param videoBlob - Video blob from MediaRecorder
- * @param latitude - User's latitude
- * @param longitude - User's longitude
  * @returns Upload response with video path
  */
 export const uploadOtpVideo = async (
   sessionId: string,
   otp: string,
-  videoBlob: Blob,
-  latitude: number,
-  longitude: number
+  videoBlob: Blob
 ): Promise<OtpVideoUploadResponse> => {
   const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
   if (videoBlob.size > MAX_FILE_SIZE) {
@@ -42,8 +38,6 @@ export const uploadOtpVideo = async (
   const formData = new FormData();
   formData.append('session_id', sessionId);
   formData.append('otp', otp);
-  formData.append('latitude', latitude.toString());
-  formData.append('longitude', longitude.toString());
   formData.append('video', videoFile);
 
   const response = await fetch(`${BACKEND_URL}/otp-video/upload`, {

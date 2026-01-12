@@ -10,6 +10,7 @@ import {
 } from './utils';
 import { saveSessionMetadata } from '../../services/api/sessionMetadata';
 import { useSessionRecording } from '../../services/sessionRecording/context';
+import { setSessionId, validateSession } from '../../utils/session';
 
 export const useLanding = () => {
   const navigate = useNavigate();
@@ -20,18 +21,19 @@ export const useLanding = () => {
 
   useEffect(() => {
     if (sessionId) {
-      localStorage.setItem('session_id', sessionId);
+      setSessionId(sessionId);
     } else {
       alert('No session found. Please use a valid verification link.');
     }
   }, [sessionId]);
 
   const handleStartVerification = () => {
-    if (!sessionId) {
-      alert('No session ID found. Please use a valid verification link.');
-      return;
+    try {
+      validateSession();
+      setShowPermissionsModal(true);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'No session ID found. Please use a valid verification link.');
     }
-    setShowPermissionsModal(true);
   };
 
   const handleCloseModal = () => {
@@ -48,9 +50,6 @@ export const useLanding = () => {
 
       try {
         locationResult = await requestLocationPermission();
-        // Store location in localStorage for reuse in other pages
-        localStorage.setItem('user_latitude', locationResult.latitude.toString());
-        localStorage.setItem('user_longitude', locationResult.longitude.toString());
       } catch (error) {
         alert('Location access is required to proceed with verification. Please enable location access and try again.');
         setIsLoading(false);

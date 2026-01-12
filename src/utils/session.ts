@@ -7,6 +7,14 @@ export const getSessionId = (): string | null => {
 };
 
 /**
+ * Set session ID in localStorage
+ * @param sessionId - Session ID to store
+ */
+export const setSessionId = (sessionId: string): void => {
+  localStorage.setItem('session_id', sessionId);
+};
+
+/**
  * Validate session exists with error handling
  * @returns session ID
  * @throws Error with descriptive message if session not found

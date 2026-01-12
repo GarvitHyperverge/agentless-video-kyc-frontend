@@ -640,7 +640,7 @@ export const validateSession = (): string => {
 
 #### React Hooks (`utils/hooks/`)
 
-**Examples:** `useSessionValidation.ts`, `useCamera.ts`
+**Examples:** `useSessionValidation.ts`, `useCameraCapture.ts`
 
 **Characteristics:**
 - ✅ **Uses React hooks** - `useState`, `useEffect`, `useRef`, `useNavigate`, etc.
@@ -669,9 +669,9 @@ export const useSessionValidation = () => {
 - Runs on mount and can trigger re-renders/navigation
 - Provides reactive behavior tied to component lifecycle
 
-**Example from `useCamera.ts`:**
+**Example from `useCameraCapture.ts`:**
 ```typescript
-export const useCamera = () => {
+export const useCameraCapture = () => {
   const [isCameraReady, setIsCameraReady] = useState(false); // State
   const videoRef = useRef<HTMLVideoElement>(null); // Ref
   
@@ -697,7 +697,7 @@ export const useCamera = () => {
 | State management | ❌ No | ✅ Yes (useState, useRef) |
 | Lifecycle | ❌ No | ✅ Yes (useEffect) |
 | Re-renders | ❌ No | ✅ Can trigger re-renders |
-| Examples | `validateSession()`, `capturePhotoFromVideo()` | `useCamera()`, `useSessionValidation()` |
+| Examples | `validateSession()`, `capturePhotoFromVideo()` | `useCameraCapture()`, `useSessionValidation()` |
 
 ---
 
@@ -723,7 +723,7 @@ export const useCamera = () => {
 - ✅ You need to trigger re-renders
 
 **Examples:**
-- `useCamera()` - Manages camera state, stream, and video ref
+- `useCameraCapture()` - Manages camera state, stream, video ref, and photo capture
 - `useSessionValidation()` - Auto-validates on mount and redirects if missing
 
 ---
@@ -741,7 +741,7 @@ src/utils/
 │
 └── hooks/                  ← React hooks
     ├── useSessionValidation.ts  ← Uses React (useEffect, useNavigate)
-    └── useCamera.ts             ← Uses React (useState, useRef, useEffect)
+    └── useCameraCapture.ts      ← Uses React (useState, useRef, useEffect)
 ```
 
 ---
@@ -1367,5 +1367,216 @@ setActiveSide(null)  // Modal closes (activeSide is null now)
 4. State reset → Ready for next action
 
 This provides a smooth, intuitive workflow for adding PAN card images!
+
+---
+
+### 13. isCameraOpen vs isCameraReady: Two Different States for Camera UI
+
+**Location:** `src/pages/PanPage/hook.ts` (lines 23-24) and `src/pages/SelfiePage/hook.ts` (lines 17-18)
+
+**The Question:**
+Why do we need both `isCameraOpen` and `isCameraReady`? Can't we just use one?
+
+**The Answer:**
+
+Both are needed because they serve **different purposes** and are set at **different times** during the camera initialization process.
+
+---
+
+#### What Each State Controls
+
+| Variable | Purpose | When It's `true` | Controls |
+|----------|---------|------------------|----------|
+| `isCameraOpen` | **UI State** - Modal visibility | User opens camera modal | Whether camera modal is visible on screen |
+| `isCameraReady` | **Technical State** - Stream readiness | Stream metadata loaded | Whether camera stream is actually working |
+
+---
+
+#### Timeline of Events
+
+```
+User clicks "Capture Photo"
+         ↓
+setIsCameraOpen(true)  ← Modal appears IMMEDIATELY
+         ↓
+[Modal is visible, but camera is loading...]
+         ↓
+Stream attaches to video element
+         ↓
+Stream loads metadata...
+         ↓
+onloadedmetadata event fires
+         ↓
+setIsCameraReady(true)  ← Camera is ready NOW
+```
+
+**The Critical Gap:**
+There's a time gap where:
+- `isCameraOpen = true` (modal is visible)
+- `isCameraReady = false` (stream is still loading)
+
+This gap is essential for good UX!
+
+---
+
+#### What Each State Is Used For
+
+**`isCameraOpen` controls:**
+
+1. **Modal visibility:**
+   ```typescript
+   {isCameraOpen && (
+     <div className="fixed inset-0 z-50 bg-black">
+       <video ref={videoRef} />
+       {/* Camera UI */}
+     </div>
+   )}
+   ```
+   - `true` = Modal is visible
+   - `false` = Modal is hidden
+
+2. **Showing other modals conditionally:**
+   ```typescript
+   {activeSide && !isCameraOpen && (
+     <div>Upload Options Modal</div>  // Only show when camera is NOT open
+   )}
+   ```
+
+**`isCameraReady` controls:**
+
+1. **Loading spinner:**
+   ```typescript
+   {!isCameraReady && (
+     <div>Loading spinner...</div>  // Show while loading
+   )}
+   ```
+
+2. **Camera guides/overlays:**
+   ```typescript
+   {isCameraReady && (
+     <div>Position your PAN card here</div>  // Only show when camera works
+   )}
+   ```
+
+3. **Capture button state:**
+   ```typescript
+   <button
+     onClick={capturePhoto}
+     disabled={!isCameraReady}  // Can't capture until ready
+   >
+   ```
+
+---
+
+#### Why Both Are Needed
+
+**If you remove `isCameraOpen`:**
+- ❌ **Problem:** No way to show the modal before the stream is ready
+- ❌ **Result:** Modal would only appear after stream loads (delayed UX)
+- ❌ **User experience:** User clicks button → nothing happens → then modal appears (confusing)
+
+**If you remove `isCameraReady`:**
+- ❌ **Problem:** Can't distinguish "modal open but loading" vs "modal open and ready"
+- ❌ **Result:** Can't show loading state or disable buttons properly
+- ❌ **User experience:** User might try to capture before camera is ready → errors or blank images
+
+---
+
+#### Real-World Analogy
+
+Think of it like opening a camera app on your phone:
+
+- **`isCameraOpen = false`:** Camera app is closed
+- **`isCameraOpen = true`:** Camera app is open (but camera might still be starting up)
+- **`isCameraReady = true`:** Camera is actually on and showing video
+
+You need to know both:
+- Is the app open? (`isCameraOpen`)
+- Is the camera actually working? (`isCameraReady`)
+
+---
+
+#### Code Example
+
+```typescript
+// In hook.ts
+const [isCameraOpen, setIsCameraOpen] = useState(false);
+const [isCameraReady, setIsCameraReady] = useState(false);
+
+const startCameraForCapture = async () => {
+  // ... create stream ...
+  
+  setIsCameraOpen(true);  // Show modal immediately
+  
+  if (videoRef.current) {
+    videoRef.current.srcObject = stream;
+    videoRef.current.onloadedmetadata = () => {
+      setIsCameraReady(true);  // Stream is ready now
+    };
+  }
+};
+
+// In main.tsx
+{isCameraOpen && (
+  <div className="camera-modal">
+    {/* Show loading while camera initializes */}
+    {!isCameraReady && <LoadingSpinner />}
+    
+    {/* Show camera feed when ready */}
+    {isCameraReady && <CameraGuide />}
+    
+    {/* Disable button until ready */}
+    <button disabled={!isCameraReady} onClick={capturePhoto}>
+      Capture
+    </button>
+  </div>
+)}
+```
+
+---
+
+#### Could You Combine Them?
+
+**Theoretical alternative:**
+You could use a single state with 3 values:
+```typescript
+const [cameraState, setCameraState] = useState<'closed' | 'loading' | 'ready'>('closed');
+```
+
+**Why this is worse:**
+- ❌ Less clear and harder to read
+- ❌ More complex conditional logic
+- ❌ Two boolean states are more intuitive
+- ❌ Each state has a clear, single purpose
+
+**Best practice:**
+- Keep them separate for clarity
+- Each state has a distinct purpose
+- Easier to understand and maintain
+
+---
+
+#### Summary
+
+**Both states are essential:**
+
+- **`isCameraOpen`** = UI state (modal visibility)
+  - Set to `true` when user opens camera
+  - Set to `false` when camera closes
+  - Controls whether modal is visible
+
+- **`isCameraReady`** = Technical state (stream readiness)
+  - Set to `true` when `onloadedmetadata` fires
+  - Set to `false` when camera closes
+  - Controls loading states, button enabling, and guides
+
+**They work together to provide:**
+- ✅ Immediate modal appearance (good UX)
+- ✅ Proper loading states (user knows what's happening)
+- ✅ Disabled buttons until ready (prevents errors)
+- ✅ Smooth camera initialization experience
+
+**Key Takeaway:**
+Don't try to combine them - they serve different purposes and are set at different times. Having both provides better control and user experience!
 
 ---
