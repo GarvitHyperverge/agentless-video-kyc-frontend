@@ -1,15 +1,14 @@
 import { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { RecordingStatus } from './type';
 import { generateOtp } from './utils';
 import { uploadOtpVideo } from '../../services/api/otpVideo';
 import { useSessionValidation } from '../../utils/hooks/useSessionValidation';
-import { validateSession } from '../../utils/session';
 import { useSessionRecording } from '../../services/sessionRecording/context';
+import { useUploadHandler } from '../../utils/hooks/useUploadHandler';
+import { attachStreamToVideo } from '../../utils/stream';
+import { createObjectUrl, revokeObjectUrl } from '../../utils/objectUrl';
 
 export const useOtpPage = () => {
-  const navigate = useNavigate();
-  
   // Shared hooks
   useSessionValidation(); // Auto-validates on mount
   const { getSharedStream, isStreamInitialized, startRecording: startSessionRecording } = useSessionRecording();
@@ -25,13 +24,21 @@ export const useOtpPage = () => {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [videoBlob, setVideoBlob] = useState<Blob | null>(null);
   const [recordingTime, setRecordingTime] = useState(0);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
 
   // Refs for recording (local recording for OTP video)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Use upload handler hook
+  const { isProcessing, uploadError, setUploadError, handleUpload } = useUploadHandler({
+    uploadFn: (sessionId: string) => uploadOtpVideo(sessionId, otp, videoBlob!),
+    onBeforeNavigate: () => {
+      revokeObjectUrl(videoUrl);
+    },
+    navigateTo: '/verify/selfie',
+    errorMessagePrefix: 'Failed to upload video',
+  });
 
   // Combined error state
   const combinedError = error || uploadError;
@@ -49,12 +56,9 @@ export const useOtpPage = () => {
         
         // Attach shared stream to video element
         const sharedStream = getSharedStream();
-        if (sharedStream && videoRef.current) {
-          videoRef.current.srcObject = sharedStream;
-          videoRef.current.onloadedmetadata = () => {
-            setIsCameraReady(true);
-          };
-        }
+        attachStreamToVideo(videoRef.current, sharedStream, () => {
+          setIsCameraReady(true);
+        });
       } catch (err) {
         console.warn('Could not initialize shared stream:', err);
         setError('Unable to access camera. Please ensure permissions are granted.');
@@ -137,7 +141,7 @@ export const useOtpPage = () => {
       // Wait for recording to fully stop, then create blob
       stopPromise.then(() => {
         const blob = new Blob(chunksRef.current, { type: 'video/webm' });
-        const url = URL.createObjectURL(blob);
+        const url = createObjectUrl(blob);
         setVideoBlob(blob);
         setVideoUrl(url);
         setRecordingStatus('recorded');
@@ -152,9 +156,7 @@ export const useOtpPage = () => {
    */
   const retakeVideo = async () => {
     // Revoke object URL to free memory
-    if (videoUrl) {
-      URL.revokeObjectURL(videoUrl);
-    }
+    revokeObjectUrl(videoUrl);
     setVideoBlob(null);
     setVideoUrl(null);
     setRecordingTime(0);
@@ -164,12 +166,9 @@ export const useOtpPage = () => {
 
     // Ensure shared stream is attached to video element
     const sharedStream = getSharedStream();
-    if (sharedStream && videoRef.current) {
-      videoRef.current.srcObject = sharedStream;
-      videoRef.current.onloadedmetadata = () => {
-        setIsCameraReady(true);
-      };
-    }
+    attachStreamToVideo(videoRef.current, sharedStream, () => {
+      setIsCameraReady(true);
+    });
   };
 
   /**
@@ -191,35 +190,10 @@ export const useOtpPage = () => {
       return;
     }
 
-    let sessionId: string;
-    try {
-      sessionId = validateSession();
-    } catch (err) {
-      setUploadError('Session not found. Please start the verification process again.');
-      return;
-    }
-
-    setIsProcessing(true);
     setRecordingStatus('uploading');
-    setUploadError(null);
-
-    try {
-      // Upload video with OTP and session ID to backend using FormData
-      const response = await uploadOtpVideo(sessionId, otp, videoBlob);
-
-      if (response.success) {
-        // Navigate away - shared stream continues recording
-        navigate('/verify/selfie');
-      } else {
-        setUploadError(response.message || 'Failed to upload video');
-        setRecordingStatus('recorded');
-      }
-    } catch (err) {
-      console.error('Upload error:', err);
-      setUploadError(err instanceof Error ? err.message : 'Failed to upload video. Please try again.');
+    await handleUpload();
+    if (uploadError) {
       setRecordingStatus('recorded');
-    } finally {
-      setIsProcessing(false);
     }
   };
 

@@ -1,13 +1,12 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { SelfieImage } from './type';
 import { uploadSelfie } from '../../services/api/selfie';
 import { useSessionValidation } from '../../utils/hooks/useSessionValidation';
-import { validateSession } from '../../utils/session';
 import { useCameraCapture } from '../../utils/hooks/useCameraCapture';
+import { useUploadHandler } from '../../utils/hooks/useUploadHandler';
+import { createObjectUrl, revokeObjectUrl } from '../../utils/objectUrl';
 
 export const useSelfiePage = () => {
-  const navigate = useNavigate();
   useSessionValidation(); // Auto-validates on mount
   
   // Use camera capture hook with shared stream
@@ -24,8 +23,18 @@ export const useSelfiePage = () => {
 
   // Page-specific state
   const [selfieImage, setSelfieImage] = useState<SelfieImage>({ imageFile: null, imageUrl: null });
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  // Use upload handler hook
+  const { isProcessing, uploadError, setUploadError, handleUpload } = useUploadHandler({
+    uploadFn: (sessionId: string) => uploadSelfie({ sessionId, imageFile: selfieImage.imageFile! }),
+    onBeforeNavigate: () => {
+      if (selfieImage.imageUrl) {
+        revokeObjectUrl(selfieImage.imageUrl);
+      }
+    },
+    navigateTo: '/verify/complete',
+    errorMessagePrefix: 'Failed to upload selfie',
+  });
 
   // Combined error state
   const combinedError = cameraError || uploadError;
@@ -51,7 +60,7 @@ export const useSelfiePage = () => {
       const file = new File([blob], 'selfie.jpg', { type: 'image/jpeg' });
       
       // Create object URL for display
-      const imageUrl = URL.createObjectURL(blob);
+      const imageUrl = createObjectUrl(blob);
 
       setSelfieImage({ imageFile: file, imageUrl });
       closeCamera(); // Close camera view but keep stream active
@@ -65,9 +74,7 @@ export const useSelfiePage = () => {
    * Remove captured selfie image and clean up object URL
    */
   const removeImage = () => {
-    if (selfieImage.imageUrl) {
-      URL.revokeObjectURL(selfieImage.imageUrl);
-    }
+    revokeObjectUrl(selfieImage.imageUrl);
     setSelfieImage({ imageFile: null, imageUrl: null });
   };
 
@@ -90,38 +97,7 @@ export const useSelfiePage = () => {
       return;
     }
 
-    let sessionId: string;
-    try {
-      sessionId = validateSession();
-    } catch (err) {
-      setUploadError('Session not found. Please start the verification process again.');
-      return;
-    }
-
-    setIsProcessing(true);
-    setUploadError(null);
-
-    try {
-      const response = await uploadSelfie({
-        sessionId,
-        imageFile: selfieImage.imageFile,
-      });
-
-      if (response.success) {
-        // Clean up object URL before navigating
-        if (selfieImage.imageUrl) {
-          URL.revokeObjectURL(selfieImage.imageUrl);
-        }
-        navigate('/verify/complete');
-      } else {
-        setUploadError(response.message || 'Failed to upload selfie');
-      }
-    } catch (err) {
-      console.error('Upload error:', err);
-      setUploadError(err instanceof Error ? err.message : 'Failed to upload selfie. Please try again.');
-    } finally {
-      setIsProcessing(false);
-    }
+    await handleUpload();
   };
 
   const canContinue = selfieImage.imageFile !== null;

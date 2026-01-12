@@ -1,4 +1,6 @@
 import { BACKEND_URL } from './config';
+import { validateFileSize } from '../../utils/fileValidation';
+import { createUploadFormData } from '../../utils/formData';
 
 interface OtpVideoUploadResponse {
   success: boolean;
@@ -21,24 +23,16 @@ export const uploadOtpVideo = async (
   videoBlob: Blob
 ): Promise<OtpVideoUploadResponse> => {
   const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
-  if (videoBlob.size > MAX_FILE_SIZE) {
-    throw new Error(
-      `Video file too large: ${(videoBlob.size / 1024 / 1024).toFixed(2)}MB. Maximum size is 50MB.`
-    );
-  }
-
-  if (videoBlob.size === 0) {
-    throw new Error('Video blob is empty');
-  }
+  validateFileSize(videoBlob, MAX_FILE_SIZE, 'Video');
 
   // Create FormData for multipart upload
   // Ensure blob has correct MIME type for backend validation
   const videoFile = new File([videoBlob], 'otp_video.webm', { type: 'video/webm' });
   
-  const formData = new FormData();
-  formData.append('session_id', sessionId);
-  formData.append('otp', otp);
-  formData.append('video', videoFile);
+  const formData = createUploadFormData(sessionId, {
+    otp,
+    video: videoFile,
+  });
 
   const response = await fetch(`${BACKEND_URL}/otp-video/upload`, {
     method: 'POST',

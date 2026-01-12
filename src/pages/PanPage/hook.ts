@@ -1,15 +1,14 @@
 import { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { PanImages } from './type';
 import { uploadPanCardImages } from '../../services/api/panCard';
 import { useSessionRecording } from '../../services/sessionRecording/context';
 import { useSessionValidation } from '../../utils/hooks/useSessionValidation';
-import { validateSession } from '../../utils/session';
 import { getDeviceType } from '../LandingPage/utils';
 import { useCameraCapture } from '../../utils/hooks/useCameraCapture';
+import { useUploadHandler } from '../../utils/hooks/useUploadHandler';
+import { createObjectUrl, revokeObjectUrl } from '../../utils/objectUrl';
 
 export const usePanPage = () => {
-  const navigate = useNavigate();
   const { 
     startRecording, 
     pauseRecording, 
@@ -41,9 +40,22 @@ export const usePanPage = () => {
     back: { file: null, url: null } 
   }); 
   const [activeSide, setActiveSide] = useState<'front' | 'back' | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Use upload handler hook
+  const { isProcessing, uploadError, setUploadError, handleUpload } = useUploadHandler({
+    uploadFn: (sessionId: string) => uploadPanCardImages({
+      sessionId,
+      frontImageFile: panImages.front.file!,
+      backImageFile: panImages.back.file!,
+    }),
+    onBeforeNavigate: () => {
+      revokeObjectUrl(panImages.front.url);
+      revokeObjectUrl(panImages.back.url);
+    },
+    navigateTo: '/verify/otp',
+    errorMessagePrefix: 'Failed to upload images',
+  });
 
   // Ensure shared stream is started (for session recording)
   useEffect(() => {
@@ -121,7 +133,7 @@ export const usePanPage = () => {
       const file = new File([blob], `pan_${activeSide}.jpg`, { type: 'image/jpeg' });
       
       // Create object URL for display
-      const imageUrl = URL.createObjectURL(blob);
+      const imageUrl = createObjectUrl(blob);
 
       // Save image for the active side and close camera
       setPanImages((prev) => ({ 
@@ -149,7 +161,7 @@ export const usePanPage = () => {
 
     try {
       // Create object URL for display
-      const imageUrl = URL.createObjectURL(file);
+      const imageUrl = createObjectUrl(file);
       
       // Save file and URL for the active side
       setPanImages((prev) => ({ ...prev, [activeSide]: { file, url: imageUrl } }));
@@ -200,10 +212,7 @@ export const usePanPage = () => {
    */
   const removeImage = (side: 'front' | 'back') => {
     setPanImages((prev) => {
-      // Clean up object URL if it exists
-      if (prev[side]?.url) {
-        URL.revokeObjectURL(prev[side].url);
-      }
+      revokeObjectUrl(prev[side]?.url);
       return { ...prev, [side]: { file: null, url: null } };
     });
   };
@@ -218,43 +227,7 @@ export const usePanPage = () => {
       return;
     }
 
-    let sessionId: string;
-    try {
-      sessionId = validateSession();
-    } catch (err) {
-      setUploadError('Session not found. Please start the verification process again.');
-      return;
-    }
-
-    setIsProcessing(true);
-    setUploadError(null);
-
-    try {
-      // Upload images to backend
-      const response = await uploadPanCardImages({
-        sessionId,
-        frontImageFile: panImages.front.file,
-        backImageFile: panImages.back.file,
-      });
-
-      if (response.success) {
-        // Clean up object URLs before navigating
-        if (panImages.front.url) {
-          URL.revokeObjectURL(panImages.front.url);
-        }
-        if (panImages.back.url) {
-          URL.revokeObjectURL(panImages.back.url);
-        }
-        navigate('/verify/otp');
-      } else {
-        setUploadError(response.message || 'Failed to upload images');
-      }
-    } catch (err) {
-      console.error('Upload error:', err);
-      setUploadError(err instanceof Error ? err.message : 'Failed to upload images. Please try again.');
-    } finally {
-      setIsProcessing(false);
-    }
+    await handleUpload();
   };
 
   // Determine if continue button should be enabled
