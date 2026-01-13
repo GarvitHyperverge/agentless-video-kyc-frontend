@@ -4,7 +4,7 @@ import { RecordingStatus } from './type';
 import { generateOtp } from './utils';
 import { uploadOtpVideo } from '../../services/api/otpVideo';
 import { useSessionRecording } from '../../services/sessionRecording/context';
-import { attachStreamToVideo } from '../../utils/stream';
+import { useCameraCapture } from '../../utils/hooks/useCameraCapture';
 import { createObjectUrl, revokeObjectUrl } from '../../utils/objectUrl';
 import { getToken } from '../../utils/session';
 import { getJWTTimestamp } from '../../utils/jwt';
@@ -14,63 +14,43 @@ import { watermarkVideo } from '../../utils/watermark';
 export const useOtpPage = () => {
   const navigate = useNavigate();
   
-  // Shared hooks
-  const { getSharedStream, isStreamInitialized, startRecording: startSessionRecording } = useSessionRecording();
+  // Use camera capture hook with shared stream
+  const {
+    videoRef,
+    isCameraReady,
+    isCameraOpen,
+    setIsCameraOpen,
+  } = useCameraCapture();
 
-  // Use shared stream for video element
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [isCameraReady, setIsCameraReady] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Shared hooks for MediaRecorder
+  const { getSharedStream } = useSessionRecording();
 
   // Page-specific state
+  const [cameraError, setCameraError] = useState<string | null>(null);
   const [otp, setOtp] = useState<string>('');
   const [recordingStatus, setRecordingStatus] = useState<RecordingStatus>('idle'); 
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [videoBlob, setVideoBlob] = useState<Blob | null>(null);
-  const [recordingTime, setRecordingTime] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
   // Refs for recording (local recording for OTP video)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const watermarkingAbortedRef = useRef<boolean>(false);
 
-  // Combined error state
-  const combinedError = error || uploadError;
-
-  // Initialize OTP and attach shared stream on component mount
+  // Initialize OTP on component mount
   useEffect(() => {
-    const initializeStream = async () => {
-      try {
-        setOtp(generateOtp());
-        
-        // Ensure shared stream is started
-        if (!isStreamInitialized) {
-          await startSessionRecording();
-        }
-        
-        // Attach shared stream to video element
-        const sharedStream = getSharedStream();
-        attachStreamToVideo(videoRef.current, sharedStream, () => {
-          setIsCameraReady(true);
-        });
-      } catch (err) {
-        console.warn('Could not initialize shared stream:', err);
-        setError('Unable to access camera. Please ensure permissions are granted.');
-      }
-    };
+    setOtp(generateOtp());
+  }, []);
 
-    initializeStream();
-
-    // Cleanup function - don't stop the shared stream, just clear timer
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-    };
-  }, [isStreamInitialized, startSessionRecording, getSharedStream]);
+  /**
+   * Open camera for recording
+   */
+  const openCameraForRecording = () => {
+    setCameraError(null);
+    setUploadError(null);
+    setIsCameraOpen(true);
+  };
 
   /**
    * Start recording video and audio from the shared camera stream
@@ -79,15 +59,12 @@ export const useOtpPage = () => {
   const startRecording = () => {
     const sharedStream = getSharedStream();
     if (!sharedStream) {
-      setError('Camera not available. Please refresh and try again.');
+      setCameraError('Camera not available. Please refresh and try again.');
       return;
     }
 
-    // Reset watermarking abort flag
-    watermarkingAbortedRef.current = false;
-
-    // Reset chunks array for new recording
-    chunksRef.current = [];
+      // Reset chunks array for new recording
+      chunksRef.current = [];
     
     // Create MediaRecorder with WebM format using shared stream
     const mediaRecorder = new MediaRecorder(sharedStream, {
@@ -105,12 +82,6 @@ export const useOtpPage = () => {
     mediaRecorderRef.current = mediaRecorder;
     mediaRecorder.start();
     setRecordingStatus('recording');
-    setRecordingTime(0);
-
-    // Start timer to track recording duration
-    timerRef.current = setInterval(() => {
-      setRecordingTime((prev) => prev + 1);
-    }, 1000);
   };
 
   /**
@@ -120,9 +91,6 @@ export const useOtpPage = () => {
   const stopRecording = () => {
     if (mediaRecorderRef.current && recordingStatus === 'recording') {
       const mediaRecorder = mediaRecorderRef.current;
-      
-      // Reset watermarking abort flag
-      watermarkingAbortedRef.current = false;
       
       // Create a promise that resolves when recording fully stops
       const stopPromise = new Promise<void>((resolve) => {
@@ -134,67 +102,23 @@ export const useOtpPage = () => {
       // Request any remaining buffered data and stop recording
       mediaRecorder.requestData();
       mediaRecorder.stop();
-      
-      // Clear the recording timer
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
 
-      // Set status to processing while watermarking
-      setRecordingStatus('processing');
-
-      // Wait for recording to fully stop, then create and watermark blob
+      // Wait for recording to fully stop, then create blob (watermarking happens on upload)
       stopPromise.then(async () => {
-        // Check if watermarking was aborted
-        if (watermarkingAbortedRef.current) {
+        // Check if chunks were cleared (user clicked retake)
+        if (chunksRef.current.length === 0) {
           return;
         }
 
+        // Create blob from recorded chunks (no watermarking yet)
         const originalBlob = new Blob(chunksRef.current, { type: 'video/webm' });
         
-        // Get token and location for watermarking
-        const token = getToken();
-        const location = getStoredLocation();
-
-        if (!token || !location) {
-          console.error('Missing token or location data for watermarking');
-          // Use original blob if watermarking fails
-          if (!watermarkingAbortedRef.current) {
-            const url = createObjectUrl(originalBlob);
-            setVideoBlob(originalBlob);
-            setVideoUrl(url);
-            setRecordingStatus('recorded');
-          }
-          return;
-        }
-
-        try {
-          // Extract timestamp from JWT
-          const timestamp = getJWTTimestamp(token);
-
-          // Watermark the video (this may take time, so check abort flag)
-          const watermarkedBlob = await watermarkVideo(originalBlob, timestamp, location.latitude, location.longitude);
-          
-          // Check again if watermarking was aborted during processing
-          if (watermarkingAbortedRef.current) {
-            return;
-          }
-          
-          const url = createObjectUrl(watermarkedBlob);
-          setVideoBlob(watermarkedBlob);
-          setVideoUrl(url);
-          setRecordingStatus('recorded');
-        } catch (err) {
-          console.error('Watermarking error:', err);
-          // Fallback to original blob if watermarking fails
-          if (!watermarkingAbortedRef.current) {
-            const url = createObjectUrl(originalBlob);
-            setVideoBlob(originalBlob);
-            setVideoUrl(url);
-            setRecordingStatus('recorded');
-          }
-        }
+        // Create preview URL and save blob (watermarking will happen on upload)
+        const url = createObjectUrl(originalBlob);
+        setVideoBlob(originalBlob);
+        setVideoUrl(url);
+        setRecordingStatus('recorded');
+        setIsCameraOpen(false); // Close camera after recording
       });
     }
   };
@@ -202,18 +126,14 @@ export const useOtpPage = () => {
   /**
    * Reset recording state for a new recording
    * Cleans up previous video blob and URL to prevent memory leaks
-   * Stream remains active - no need to restart it
    */
   const retakeVideo = async () => {
-    // Abort any ongoing watermarking process
-    watermarkingAbortedRef.current = true;
-    
     // Stop any active recording
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       try {
         mediaRecorderRef.current.stop();
       } catch (e) {
-        // Ignore errors
+        console.error('Error stopping recording:', e);
       }
       mediaRecorderRef.current = null;
     }
@@ -221,44 +141,16 @@ export const useOtpPage = () => {
     // Clear chunks
     chunksRef.current = [];
     
-    // Clear timer
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-    
     // Revoke object URL to free memory
     revokeObjectUrl(videoUrl);
     setVideoBlob(null);
     setVideoUrl(null);
-    setRecordingTime(0);
     setUploadError(null);
-    setError(null);
+    setCameraError(null);
     
-    // Reset camera ready state to show loading
-    setIsCameraReady(false);
+    // Reset to idle and reopen camera
     setRecordingStatus('idle');
-
-    // Clear video element and reattach shared stream
-    if (videoRef.current) {
-      // Clear any existing srcObject (blob URL or previous stream)
-      videoRef.current.srcObject = null;
-      videoRef.current.load(); // Reset video element
-    }
-
-    // Use requestAnimationFrame to ensure DOM is updated before reattaching stream
-    requestAnimationFrame(() => {
-      const sharedStream = getSharedStream();
-      if (sharedStream && videoRef.current) {
-        attachStreamToVideo(videoRef.current, sharedStream, () => {
-          setIsCameraReady(true);
-        });
-        // Ensure video plays
-        videoRef.current?.play().catch((err) => {
-          console.warn('Failed to play video after retake:', err);
-        });
-      }
-    });
+    setIsCameraOpen(true);
   };
 
   /**
@@ -272,7 +164,7 @@ export const useOtpPage = () => {
 
   /**
    * Upload recorded video to backend and navigate to next step
-   * Converts video blob to base64 format before uploading
+   * Watermarks the video before uploading
    */
   const handleContinue = async () => {
     if (!videoBlob) {
@@ -287,12 +179,22 @@ export const useOtpPage = () => {
       return;
     }
 
+    const location = getStoredLocation();
+    if (!location) {
+      setUploadError('Missing location data. Please refresh and try again.');
+      return;
+    }
+
     setRecordingStatus('uploading');
     setIsProcessing(true);
     setUploadError(null);
 
     try {
-      const response = await uploadOtpVideo(token, otp, videoBlob);
+      // Watermark video before uploading
+      const timestamp = getJWTTimestamp(token);
+      const watermarkedBlob = await watermarkVideo(videoBlob, timestamp, location.latitude, location.longitude);
+
+      const response = await uploadOtpVideo(token, otp, watermarkedBlob);
 
       if (response.success) {
         // Clean up object URL before navigating
@@ -318,11 +220,14 @@ export const useOtpPage = () => {
     otp,
     recordingStatus,
     videoUrl,
-    recordingTime,
     isProcessing,
-    error: combinedError,
+    cameraError,
+    uploadError,
     isCameraReady,
+    isCameraOpen,
+    setIsCameraOpen,
     videoRef,
+    openCameraForRecording,
     startRecording,
     stopRecording,
     retakeVideo,

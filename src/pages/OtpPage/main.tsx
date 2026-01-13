@@ -6,11 +6,14 @@ const OtpPage: React.FC = () => {
     otp,
     recordingStatus,
     videoUrl,
-    recordingTime,
     isProcessing,
-    error,
+    cameraError,
+    uploadError,
     isCameraReady,
+    isCameraOpen,
+    setIsCameraOpen,
     videoRef,
+    openCameraForRecording,
     startRecording,
     stopRecording,
     retakeVideo,
@@ -80,7 +83,7 @@ const OtpPage: React.FC = () => {
               </div>
               <button
                 onClick={regenerateOtp}
-                disabled={recordingStatus === 'recording' || recordingStatus === 'processing' || isProcessing}
+                disabled={recordingStatus === 'recording' || isProcessing}
                 className="mt-4 text-rose-400 hover:text-rose-300 text-sm flex items-center gap-2 mx-auto transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -97,7 +100,7 @@ const OtpPage: React.FC = () => {
           </div>
 
           {/* Error message */}
-          {error && (
+          {cameraError && (
             <div className="mb-6 p-4 bg-red-500/20 border border-red-500/30 rounded-xl text-red-300 text-sm flex items-center gap-3">
               <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
@@ -107,27 +110,51 @@ const OtpPage: React.FC = () => {
                   d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                 />
               </svg>
-              {error}
+              {cameraError}
+            </div>
+          )}
+          {uploadError && (
+            <div className="mb-6 p-4 bg-red-500/20 border border-red-500/30 rounded-xl text-red-300 text-sm flex items-center gap-3">
+              <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              {uploadError}
             </div>
           )}
 
           {/* Video Section */}
           <div className="mb-8">
             <div className="relative aspect-video rounded-2xl overflow-hidden bg-slate-800 border-2 border-slate-700">
-              {/* Live camera feed (shown when idle or recording) */}
-              {(recordingStatus === 'idle' || recordingStatus === 'recording') && (
+              {/* Idle state - show placeholder */}
+              {recordingStatus === 'idle' && !isCameraOpen && (
+                <div className="absolute inset-0 flex items-center justify-center bg-slate-800">
+                  <div className="text-center">
+                    <svg className="w-16 h-16 text-slate-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+                      />
+                    </svg>
+                    <p className="text-slate-400 text-sm">Click "Start Recording" to begin</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Camera preview (inline) */}
+              {isCameraOpen && (recordingStatus === 'idle' || recordingStatus === 'recording') && (
                 <>
-                  <video
-                    ref={videoRef}
-                    autoPlay
-                    playsInline
-                    muted
-                    className="w-full h-full object-cover"
-                  />
+                  <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
                   
-                  {/* Loading overlay */}
+                  {/* Loading indicator */}
                   {!isCameraReady && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-slate-800">
+                    <div className="absolute inset-0 flex items-center justify-center bg-slate-800/90">
                       <div className="text-center">
                         <svg className="w-12 h-12 text-white animate-spin mx-auto mb-4" fill="none" viewBox="0 0 24 24">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -146,29 +173,10 @@ const OtpPage: React.FC = () => {
                   {recordingStatus === 'recording' && (
                     <div className="absolute top-4 left-4 flex items-center gap-2 bg-red-600 px-3 py-1.5 rounded-full">
                       <span className="w-3 h-3 bg-white rounded-full animate-pulse" />
-                      <span className="text-white text-sm font-medium">
-                        {Math.floor(recordingTime / 60).toString().padStart(2, '0')}:{(recordingTime % 60).toString().padStart(2, '0')}
-                      </span>
+                      <span className="text-white text-sm font-medium">Recording</span>
                     </div>
                   )}
                 </>
-              )}
-
-              {/* Processing state (watermarking) */}
-              {recordingStatus === 'processing' && (
-                <div className="absolute inset-0 flex items-center justify-center bg-slate-800">
-                  <div className="text-center">
-                    <svg className="w-12 h-12 text-white animate-spin mx-auto mb-4" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      />
-                    </svg>
-                    <p className="text-white text-sm">Processing video...</p>
-                  </div>
-                </div>
               )}
 
               {/* Recorded video preview */}
@@ -184,7 +192,17 @@ const OtpPage: React.FC = () => {
 
             {/* Recording controls */}
             <div className="flex justify-center gap-4 mt-6">
-              {recordingStatus === 'idle' && (
+              {recordingStatus === 'idle' && !isCameraOpen && (
+                <button
+                  onClick={openCameraForRecording}
+                  className="px-6 py-3 rounded-xl font-medium flex items-center gap-2 transition-all bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/30 hover:scale-105 active:scale-95"
+                >
+                  <span className="w-3 h-3 bg-white rounded-full" />
+                  Start Recording
+                </button>
+              )}
+
+              {isCameraOpen && recordingStatus === 'idle' && (
                 <button
                   onClick={startRecording}
                   disabled={!isCameraReady}
@@ -212,21 +230,38 @@ const OtpPage: React.FC = () => {
               )}
 
               {recordingStatus === 'recorded' && (
-                <button
-                  onClick={retakeVideo}
-                  disabled={isProcessing}
-                  className="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-xl font-medium flex items-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                    />
-                  </svg>
-                  Retake Video
-                </button>
+                <>
+                  <button
+                    onClick={retakeVideo}
+                    disabled={isProcessing}
+                    className="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-xl font-medium flex items-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                      />
+                    </svg>
+                    Retake Video
+                  </button>
+                  <button
+                    onClick={regenerateOtp}
+                    disabled={isProcessing}
+                    className="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-xl font-medium flex items-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                      />
+                    </svg>
+                    Generate New OTP
+                  </button>
+                </>
               )}
             </div>
           </div>

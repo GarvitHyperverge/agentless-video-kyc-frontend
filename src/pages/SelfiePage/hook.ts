@@ -27,9 +27,6 @@ export const useSelfiePage = () => {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
 
-  // Combined error state
-  const combinedError = cameraError || uploadError;
-
   /**
    * Open camera for selfie capture - uses shared stream
    */
@@ -47,29 +44,13 @@ export const useSelfiePage = () => {
     if (!blob) return;
 
     try {
-      // Get token and location for watermarking
-      const token = getToken();
-      const location = getStoredLocation();
-
-      if (!token || !location) {
-        setCameraError('Missing token or location data. Please refresh and try again.');
-        return;
-      }
-
-      // Extract timestamp from JWT
-      const timestamp = getJWTTimestamp(token);
-
-      // Watermark the image
-      const watermarkedBlob = await watermarkImage(blob, timestamp, location.latitude, location.longitude);
-
-      // Convert watermarked Blob to File for upload
-      const file = new File([watermarkedBlob], 'selfie.jpg', { type: 'image/jpeg' });
-      
-      // Create object URL for display (use original blob for preview)
+      // Convert blob to File for storage
+      const file = new File([blob], 'selfie.jpg', { type: 'image/jpeg' });
+      // Create object URL for display (preview)
       const imageUrl = createObjectUrl(blob);
-
+      // Save file and preview URL (watermarking will happen on upload)
       setSelfieImage({ imageFile: file, imageUrl });
-      setIsCameraOpen(false); // Close camera view but keep stream active
+      setIsCameraOpen(false);
     } catch (err) {
       console.error('Capture error:', err);
       setCameraError('Failed to capture photo. Please try again.');
@@ -96,6 +77,7 @@ export const useSelfiePage = () => {
 
   /**
    * Upload selfie to backend and navigate to thank you page
+   * Watermarks the image before uploading
    */
   const handleContinue = async () => {
     if (!selfieImage.imageFile) {
@@ -110,11 +92,24 @@ export const useSelfiePage = () => {
       return;
     }
 
+    const location = getStoredLocation();
+    if (!location) {
+      setUploadError('Missing location data. Please refresh and try again.');
+      return;
+    }
+
     setIsProcessing(true);
     setUploadError(null);
 
     try {
-      const response = await uploadSelfie({ token, imageFile: selfieImage.imageFile });
+      const timestamp = getJWTTimestamp(token);
+
+      // Watermark the image
+      const watermarkedBlob = await watermarkImage(selfieImage.imageFile, timestamp, location.latitude, location.longitude);
+
+      const watermarkedFile = new File([watermarkedBlob], selfieImage.imageFile.name, { type: selfieImage.imageFile.type });
+
+      const response = await uploadSelfie({ token, imageFile: watermarkedFile });
 
       if (response.success) {
         // Clean up object URL before navigating
@@ -140,7 +135,8 @@ export const useSelfiePage = () => {
     isCameraOpen,
     isCameraReady,
     isProcessing,
-    error: combinedError,
+    cameraError,
+    uploadError,
     videoRef,
     openCamera,
     setIsCameraOpen,
