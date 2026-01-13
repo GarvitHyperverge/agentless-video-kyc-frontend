@@ -13,27 +13,32 @@ export const watermarkImage = async (
   longitude: number
 ): Promise<Blob> => {
   return new Promise((resolve, reject) => {
+    // Step 1: Create image element and object URL to load the blob
     const img = new Image();
     const url = URL.createObjectURL(imageBlob);
 
+    // Step 2: Wait for image to load, then process
     img.onload = () => {
       try {
+        // Step 3: Clean up object URL (no longer needed after image loads)
         URL.revokeObjectURL(url);
 
+        // Step 4: Create canvas matching image dimensions
         const canvas = document.createElement('canvas');
         canvas.width = img.width;
         canvas.height = img.height;
 
+        // Step 5: Get 2D drawing context
         const ctx = canvas.getContext('2d');
         if (!ctx) {
           reject(new Error('Could not get canvas context'));
           return;
         }
 
-        // Draw the original image
+        // Step 6: Draw original image onto canvas (base layer)
         ctx.drawImage(img, 0, 0);
 
-        // Prepare watermark text
+        // Step 7: Format timestamp, location, date, and time into watermark text
         const date = new Date(timestamp * 1000);
         const day = date.getDate().toString().padStart(2, '0');
         const month = (date.getMonth() + 1).toString().padStart(2, '0');
@@ -49,7 +54,7 @@ export const watermarkImage = async (
 
         console.log('Applying watermark:', watermarkText);
 
-        // Set watermark style - make it more visible
+        // Step 8: Configure text style (white fill, black stroke for visibility)
         ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
         ctx.strokeStyle = 'rgba(0, 0, 0, 0.9)';
         // Scale font size based on image dimensions for better visibility
@@ -59,18 +64,18 @@ export const watermarkImage = async (
         ctx.textBaseline = 'bottom';
         ctx.lineWidth = Math.max(2, fontSize / 8);
 
-        // Calculate text position (bottom right with padding)
+        // Step 9: Calculate position (bottom right with padding)
         const padding = Math.max(10, fontSize / 2);
         const x = canvas.width - padding;
         const y = canvas.height - padding;
 
-        // Draw text with stroke for better visibility
+        // Step 10: Draw watermark text (stroke first, then fill for contrast)
         ctx.strokeText(watermarkText, x, y);
         ctx.fillText(watermarkText, x, y);
 
         console.log('Watermark drawn at:', { x, y, fontSize, text: watermarkText });
 
-        // Convert canvas to blob
+        // Step 11: Convert canvas (image + watermark) to JPEG blob
         canvas.toBlob(
           (blob) => {
             if (blob) {
@@ -89,12 +94,14 @@ export const watermarkImage = async (
       }
     };
 
+    // Handle image loading errors
     img.onerror = (error) => {
       URL.revokeObjectURL(url);
       console.error('Failed to load image for watermarking:', error);
       reject(new Error('Failed to load image for watermarking'));
     };
 
+    // Step 2: Start loading image from object URL
     img.src = url;
   });
 };

@@ -1,9 +1,8 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { SelfieImage } from './type';
 import { uploadSelfie } from '../../services/api/selfie';
-import { useSessionValidation } from '../../utils/hooks/useSessionValidation';
 import { useCameraCapture } from '../../utils/hooks/useCameraCapture';
-import { useUploadHandler } from '../../utils/hooks/useUploadHandler';
 import { createObjectUrl, revokeObjectUrl } from '../../utils/objectUrl';
 import { getToken } from '../../utils/session';
 import { getJWTTimestamp } from '../../utils/jwt';
@@ -11,34 +10,22 @@ import { getStoredLocation } from '../../utils/location';
 import { watermarkImage } from '../../utils/watermark';
 
 export const useSelfiePage = () => {
-  useSessionValidation(); // Auto-validates on mount
+  const navigate = useNavigate();
   
   // Use camera capture hook with shared stream
   const {
     videoRef,
     isCameraReady,
     isCameraOpen,
-    error: cameraError,
-    setError: setCameraError,
-    openCamera: openCameraBase,
-    closeCamera,
+    setIsCameraOpen,
     capturePhoto: capturePhotoBase,
-  } = useCameraCapture({ autoInitializeStream: true });
+  } = useCameraCapture();
 
   // Page-specific state
   const [selfieImage, setSelfieImage] = useState<SelfieImage>({ imageFile: null, imageUrl: null });
-
-  // Use upload handler hook
-  const { isProcessing, uploadError, setUploadError, handleUpload } = useUploadHandler({
-    uploadFn: (token: string) => uploadSelfie({ token, imageFile: selfieImage.imageFile! }),
-    onBeforeNavigate: () => {
-      if (selfieImage.imageUrl) {
-        revokeObjectUrl(selfieImage.imageUrl);
-      }
-    },
-    navigateTo: '/verify/complete',
-    errorMessagePrefix: 'Failed to upload selfie',
-  });
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [cameraError, setCameraError] = useState<string | null>(null);
 
   // Combined error state
   const combinedError = cameraError || uploadError;
@@ -49,7 +36,7 @@ export const useSelfiePage = () => {
   const openCamera = () => {
     setUploadError(null);
     setCameraError(null);
-    openCameraBase();
+    setIsCameraOpen(true);
   };
 
   /**
@@ -82,7 +69,7 @@ export const useSelfiePage = () => {
       const imageUrl = createObjectUrl(blob);
 
       setSelfieImage({ imageFile: file, imageUrl });
-      closeCamera(); // Close camera view but keep stream active
+      setIsCameraOpen(false); // Close camera view but keep stream active
     } catch (err) {
       console.error('Capture error:', err);
       setCameraError('Failed to capture photo. Please try again.');
@@ -116,7 +103,34 @@ export const useSelfiePage = () => {
       return;
     }
 
-    await handleUpload();
+    // Route is already protected by VerificationProtectedRoute, so token must exist
+    const token = getToken();
+    if (!token) {
+      setUploadError('Session not found. Please start the verification process again.');
+      return;
+    }
+
+    setIsProcessing(true);
+    setUploadError(null);
+
+    try {
+      const response = await uploadSelfie({ token, imageFile: selfieImage.imageFile });
+
+      if (response.success) {
+        // Clean up object URL before navigating
+        if (selfieImage.imageUrl) {
+          revokeObjectUrl(selfieImage.imageUrl);
+        }
+        navigate('/verify/complete');
+      } else {
+        setUploadError(response.message || 'Failed to upload selfie. Please try again.');
+      }
+    } catch (err) {
+      console.error('Upload error:', err);
+      setUploadError(err instanceof Error ? err.message : 'Failed to upload selfie. Please try again.');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const canContinue = selfieImage.imageFile !== null;
@@ -129,7 +143,7 @@ export const useSelfiePage = () => {
     error: combinedError,
     videoRef,
     openCamera,
-    closeCamera,
+    setIsCameraOpen,
     capturePhoto,
     removeImage,
     retakePhoto,

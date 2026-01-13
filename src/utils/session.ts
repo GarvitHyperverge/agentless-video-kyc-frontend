@@ -15,14 +15,10 @@ export const setToken = (token: string): void => {
 };
 
 /**
- * Validate token exists with error handling
- * @returns token
- * @throws Error with descriptive message if token not found
+ * Validate token exists
+ * @returns true if token exists, false otherwise
  */
-export const validateSession = (): string => {
-  const token = localStorage.getItem('token');
-  if (!token) {
-    throw new Error('Session not found. Please start the verification process again.');
-  }
-  return token;
+export const validateSession = (): boolean => {
+  const token = getToken();
+  return token !== null;
 };

@@ -13,7 +13,7 @@ export const useSessionValidation = () => {
     const token = getToken();
     if (!token) {
       alert('Session not found. Please start the verification process again.');
-      navigate('/audit/sessions');
+      navigate('/verify');
     }
   }, [navigate]);
 

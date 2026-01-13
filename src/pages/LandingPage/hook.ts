@@ -29,12 +29,11 @@ export const useLanding = () => {
   }, [token]);
 
   const handleStartVerification = () => {
-    try {
-      validateSession();
-      setShowPermissionsModal(true);
-    } catch (error) {
-      alert(error instanceof Error ? error.message : 'No session ID found. Please use a valid verification link.');
+    if (!validateSession()) {
+      alert('No session ID found. Please use a valid verification link.');
+      return;
     }
+    setShowPermissionsModal(true);
   };
 
   const handleCloseModal = () => {
@@ -45,7 +44,6 @@ export const useLanding = () => {
     setIsLoading(true);
 
     try {
-      // Request mandatory permissions first (location and IP)
       let locationResult: { latitude: number; longitude: number };
       let ipAddress: string;
 
@@ -66,10 +64,8 @@ export const useLanding = () => {
       }
 
       // Request camera and microphone permissions
-      const [cameraPermission, microphonePermission] = await Promise.all([
-        requestCameraPermission(),
-        requestMicrophonePermission(),
-      ]);
+      const cameraPermission = await requestCameraPermission();
+      const microphonePermission = await requestMicrophonePermission();
 
       const metadata: SessionMetadata = {
         latitude: locationResult.latitude,

@@ -1,10 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { RecordingStatus } from './type';
 import { generateOtp } from './utils';
 import { uploadOtpVideo } from '../../services/api/otpVideo';
-import { useSessionValidation } from '../../utils/hooks/useSessionValidation';
 import { useSessionRecording } from '../../services/sessionRecording/context';
-import { useUploadHandler } from '../../utils/hooks/useUploadHandler';
 import { attachStreamToVideo } from '../../utils/stream';
 import { createObjectUrl, revokeObjectUrl } from '../../utils/objectUrl';
 import { getToken } from '../../utils/session';
@@ -13,8 +12,9 @@ import { getStoredLocation } from '../../utils/location';
 import { watermarkVideo } from '../../utils/watermark';
 
 export const useOtpPage = () => {
+  const navigate = useNavigate();
+  
   // Shared hooks
-  useSessionValidation(); // Auto-validates on mount
   const { getSharedStream, isStreamInitialized, startRecording: startSessionRecording } = useSessionRecording();
 
   // Use shared stream for video element
@@ -28,22 +28,14 @@ export const useOtpPage = () => {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [videoBlob, setVideoBlob] = useState<Blob | null>(null);
   const [recordingTime, setRecordingTime] = useState(0);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   // Refs for recording (local recording for OTP video)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const watermarkingAbortedRef = useRef<boolean>(false);
-
-  // Use upload handler hook
-  const { isProcessing, uploadError, setUploadError, handleUpload } = useUploadHandler({
-    uploadFn: (token: string) => uploadOtpVideo(token, otp, videoBlob!),
-    onBeforeNavigate: () => {
-      revokeObjectUrl(videoUrl);
-    },
-    navigateTo: '/verify/selfie',
-    errorMessagePrefix: 'Failed to upload video',
-  });
 
   // Combined error state
   const combinedError = error || uploadError;
@@ -288,10 +280,34 @@ export const useOtpPage = () => {
       return;
     }
 
+    // Route is already protected by VerificationProtectedRoute, so token must exist
+    const token = getToken();
+    if (!token) {
+      setUploadError('Session not found. Please start the verification process again.');
+      return;
+    }
+
     setRecordingStatus('uploading');
-    await handleUpload();
-    if (uploadError) {
+    setIsProcessing(true);
+    setUploadError(null);
+
+    try {
+      const response = await uploadOtpVideo(token, otp, videoBlob);
+
+      if (response.success) {
+        // Clean up object URL before navigating
+        revokeObjectUrl(videoUrl);
+        navigate('/verify/selfie');
+      } else {
+        setUploadError(response.message || 'Failed to upload video. Please try again.');
+        setRecordingStatus('recorded');
+      }
+    } catch (err) {
+      console.error('Upload error:', err);
+      setUploadError(err instanceof Error ? err.message : 'Failed to upload video. Please try again.');
       setRecordingStatus('recorded');
+    } finally {
+      setIsProcessing(false);
     }
   };
 

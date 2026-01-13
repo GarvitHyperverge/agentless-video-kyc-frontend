@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useRef, useState, useCallback } from 'react';
 import { uploadSessionRecording } from '../api/sessionRecording';
-import { validateSession} from '../../utils/session';
+import { getToken } from '../../utils/session';
 import { SessionRecordingContextType } from './type';
 import { getJWTTimestamp } from '../../utils/jwt';
 import { getStoredLocation } from '../../utils/location';
@@ -143,10 +143,9 @@ export const SessionRecordingProvider: React.FC<{ children: React.ReactNode }> =
   }, [recordingStream]);
 
   const uploadRecording = useCallback(async (): Promise<boolean> => {
-    let token: string;
-    try {
-      token = validateSession();
-    } catch (err) {
+    // uploadRecording is only called from protected routes, so token must exist
+    const token = getToken();
+    if (!token) {
       console.error('No token found');
       return false;
     }

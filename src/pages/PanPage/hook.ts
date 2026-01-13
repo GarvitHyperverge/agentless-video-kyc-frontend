@@ -1,126 +1,45 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { PanImages } from './type';
 import { uploadPanCardImages } from '../../services/api/panCard';
-import { useSessionRecording } from '../../services/sessionRecording/context';
-import { useSessionValidation } from '../../utils/hooks/useSessionValidation';
-import { getDeviceType } from '../LandingPage/utils';
 import { useCameraCapture } from '../../utils/hooks/useCameraCapture';
-import { useUploadHandler } from '../../utils/hooks/useUploadHandler';
 import { createObjectUrl, revokeObjectUrl } from '../../utils/objectUrl';
-import { getToken } from '../../utils/session';
 import { getJWTTimestamp } from '../../utils/jwt';
 import { getStoredLocation } from '../../utils/location';
+import { getToken } from '../../utils/session';
 import { watermarkImage } from '../../utils/watermark';
 
 export const usePanPage = () => {
-  const { 
-    startRecording, 
-    pauseRecording, 
-    resumeRecording,
-    isStreamInitialized 
-  } = useSessionRecording();
-  useSessionValidation(); // Auto-validates on mount
+  const navigate = useNavigate();
   
-  // Temporary stream for document capture
-  const temporaryStreamRef = useRef<MediaStream | null>(null);
-
-  // Use camera capture hook with temporary stream ref
+  // Use camera capture hook with shared stream (front camera)
   const {
     videoRef,
     isCameraReady,
     isCameraOpen,
-    error: cameraError,
-    setError: setCameraError,
-    openCamera: openCameraBase,
-    closeCamera: closeCameraBase,
+    setIsCameraOpen,
     capturePhoto: capturePhotoBase,
-  } = useCameraCapture({ 
-    autoInitializeStream: false,
-    customStreamRef: temporaryStreamRef
-  });
+  } = useCameraCapture();
 
   const [panImages, setPanImages] = useState<PanImages>({ 
     front: { file: null, url: null }, 
     back: { file: null, url: null } 
   }); 
   const [activeSide, setActiveSide] = useState<'front' | 'back' | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [cameraError, setCameraError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Use upload handler hook
-  const { isProcessing, uploadError, setUploadError, handleUpload } = useUploadHandler({
-    uploadFn: (token: string) => uploadPanCardImages({
-      token,
-      frontImageFile: panImages.front.file!,
-      backImageFile: panImages.back.file!,
-    }),
-    onBeforeNavigate: () => {
-      revokeObjectUrl(panImages.front.url);
-      revokeObjectUrl(panImages.back.url);
-    },
-    navigateTo: '/verify/otp',
-    errorMessagePrefix: 'Failed to upload images',
-  });
-
-  // Ensure shared stream is started (for session recording)
-  useEffect(() => {
-    const initializeSharedStream = async () => {
-      try {
-        // Start shared stream if not already initialized
-        if (!isStreamInitialized) {
-          await startRecording();
-        }
-      } catch (err) {
-        console.warn('Could not initialize shared stream:', err);
-        setCameraError('Unable to access camera. Please ensure permissions are granted.');
-      }
-    };
-
-    initializeSharedStream();
-  }, [isStreamInitialized, startRecording, setCameraError]);
-
-  // Start temporary camera stream for document capture
-  const startCameraForCapture = async () => {
-    try {
-      // Pause session recording video track
-      pauseRecording();
-      
-      // Determine camera based on device type
-      const deviceType = getDeviceType();
-      // Desktop: use front camera, Mobile/Tablet: use back camera
-      const facingMode = deviceType === 'desktop' ? 'user' : 'environment';
-      
-      // Create temporary camera stream for document capture
-      const documentCameraStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode, width: { ideal: 1920 }, height: { ideal: 1080 } },
-        audio: false,
-      });
-      
-      temporaryStreamRef.current = documentCameraStream;
-      
-      // Open camera - hook will attach stream to video element
-      setCameraError(null);
-      openCameraBase();
-      console.log(`Temporary ${facingMode === 'user' ? 'front' : 'back'} camera stream started for document capture (${deviceType})`);
-    } catch (err) {
-      console.error('Camera error:', err);
-      setCameraError('Unable to access camera. Please ensure permissions are granted.');
-      resumeRecording(); // Resume if failed
-    }
+  // Open camera for document capture (uses shared stream - front camera)
+  const startCameraForCapture = () => {
+    setCameraError(null);
+    setIsCameraOpen(true);
   };
 
+  // Close camera modal
   const stopCamera = () => {
-    // Stop temporary camera stream
-    if (temporaryStreamRef.current) {
-      temporaryStreamRef.current.getTracks().forEach(track => track.stop());
-      temporaryStreamRef.current = null;
-      console.log('Temporary camera stream stopped');
-    }
-    
-    // Resume session recording
-    resumeRecording();
-    
-    // Close camera modal
-    closeCameraBase();
+    setIsCameraOpen(false);
   };
 
   /**
@@ -133,30 +52,11 @@ export const usePanPage = () => {
     if (!blob) return;
 
     try {
-      // Get token and location for watermarking
-      const token = getToken();
-      const location = getStoredLocation();
-
-      if (!token || !location) {
-        setCameraError('Missing token or location data. Please refresh and try again.');
-        return;
-      }
-
-      // Extract timestamp from JWT
-      const timestamp = getJWTTimestamp(token);
-      console.log('Watermarking PAN image:', { timestamp, location, activeSide });
-
-      // Watermark the image
-      const watermarkedBlob = await watermarkImage(blob, timestamp, location.latitude, location.longitude);
-      console.log('PAN image watermarked successfully:', { originalSize: blob.size, watermarkedSize: watermarkedBlob.size });
-
-      // Convert watermarked Blob to File for upload
-      const file = new File([watermarkedBlob], `pan_${activeSide}.jpg`, { type: 'image/jpeg' });
-      
-      // Create object URL for display (use original blob for preview)
+      // Convert blob to File for storage
+      const file = new File([blob], `pan_${activeSide}.jpg`, { type: 'image/jpeg' });
+      // Create object URL for display (preview)
       const imageUrl = createObjectUrl(blob);
-
-      // Save watermarked file and preview URL
+      // Save file and preview URL (watermarking will happen on upload)
       setPanImages((prev) => ({ 
         ...prev, 
         [activeSide]: { file, url: imageUrl } 
@@ -164,15 +64,13 @@ export const usePanPage = () => {
       stopCamera();
       setActiveSide(null);
     } catch (err) {
-      console.error('Capture/watermarking error:', err);
+      console.error('Capture error:', err);
       setCameraError('Failed to capture photo. Please try again.');
     }
   };
 
   /**
    * Handles PAN card image file upload from user's local system
-   * 
-   * Watermarks the image and stores it for upload.
    */
   const handlePanImageFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -181,40 +79,17 @@ export const usePanPage = () => {
     setUploadError(null);
 
     try {
-      // Get token and location for watermarking
-      const token = getToken();
-      const location = getStoredLocation();
-
-      if (!token || !location) {
-        setUploadError('Missing token or location data. Please refresh and try again.');
-        return;
-      }
-
-      // Extract timestamp from JWT
-      const timestamp = getJWTTimestamp(token);
-      console.log('Watermarking PAN file upload:', { timestamp, location, activeSide, fileName: file.name });
-
-      // Convert file to blob for watermarking
-      const fileBlob = await file.arrayBuffer().then(buffer => new Blob([buffer], { type: file.type }));
-
-      // Watermark the image
-      const watermarkedBlob = await watermarkImage(fileBlob, timestamp, location.latitude, location.longitude);
-      console.log('PAN file watermarked successfully:', { originalSize: fileBlob.size, watermarkedSize: watermarkedBlob.size });
-
-      // Convert watermarked blob to File
-      const watermarkedFile = new File([watermarkedBlob], file.name, { type: file.type });
-
-      // Create object URL for display (use original file for preview)
+      // Create object URL for display (preview)
       const imageUrl = createObjectUrl(file);
       
-      // Save watermarked file and preview URL
-      setPanImages((prev) => ({ ...prev, [activeSide]: { file: watermarkedFile, url: imageUrl } }));
+      // Save file and preview URL (watermarking will happen on upload)
+      setPanImages((prev) => ({ ...prev, [activeSide]: { file, url: imageUrl } }));
       setActiveSide(null);
     } catch (err) {
       setUploadError('Failed to process image. Please try again.');
-      console.error('Image processing/watermarking error:', err);
+      console.error('Image processing error:', err);
     } finally {
-      // Reset file input to allow selecting same file again
+      // Reset input value to allow re-selecting the same file
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -271,14 +146,56 @@ export const usePanPage = () => {
       return;
     }
 
-    await handleUpload();
+    // Route is already protected by VerificationProtectedRoute, so token must exist
+    const token = getToken();
+    if (!token) {
+      setUploadError('Session not found. Please start the verification process again.');
+      return;
+    }
+
+    const location = getStoredLocation();
+    if (!location) {
+      setUploadError('Missing location data. Please refresh and try again.');
+      return;
+    }
+
+    setIsProcessing(true);
+    setUploadError(null);
+
+    try {
+      const timestamp = getJWTTimestamp(token);
+
+      // Watermark both images 
+      const watermarkedFrontBlob = await watermarkImage(panImages.front.file!, timestamp, location.latitude, location.longitude);
+      const watermarkedBackBlob = await watermarkImage(panImages.back.file!, timestamp, location.latitude, location.longitude);
+
+      const watermarkedFrontFile = new File([watermarkedFrontBlob], panImages.front.file!.name, { type: panImages.front.file!.type });
+      const watermarkedBackFile = new File([watermarkedBackBlob], panImages.back.file!.name, { type: panImages.back.file!.type });
+
+      const response = await uploadPanCardImages({
+        token,
+        frontImageFile: watermarkedFrontFile,
+        backImageFile: watermarkedBackFile,
+      });
+
+      if (response.success) {
+        // Clean up object URLs before navigating
+        revokeObjectUrl(panImages.front.url);
+        revokeObjectUrl(panImages.back.url);
+        navigate('/verify/otp');
+      } else {
+        setUploadError(response.message || 'Failed to upload images. Please try again.');
+      }
+    } catch (err) {
+      console.error('Upload error:', err);
+      setUploadError(err instanceof Error ? err.message : 'Failed to upload images. Please try again.');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   // Determine if continue button should be enabled
   const canContinue = panImages.front.file !== null && panImages.back.file !== null;
-
-  // Combined error state
-  const combinedError = cameraError || uploadError;
 
   return {
     panImages,
@@ -286,7 +203,8 @@ export const usePanPage = () => {
     isCameraOpen,
     isCameraReady,
     isProcessing,
-    error: combinedError,
+    cameraError,
+    uploadError,
     videoRef,
     fileInputRef,
     openUploadOptions,

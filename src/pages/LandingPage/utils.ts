@@ -42,11 +42,7 @@ export const requestMicrophonePermission = async (): Promise<boolean> => {
 
 /**
  * Requests location permission and retrieves the user's current coordinates.
- * Uses high accuracy mode with a 10-second timeout.
- * Wraps the callback-based Geolocation API in a Promise for easier async/await usage.
  * 
- * @returns {Promise<{ latitude: number; longitude: number }>} Promise that resolves to coordinates object
- * @throws {Error} If geolocation is not supported or permission is denied
  */
 export const requestLocationPermission = async (): Promise<{ latitude: number; longitude: number }> => {
   return new Promise((resolve, reject) => {
@@ -63,7 +59,6 @@ export const requestLocationPermission = async (): Promise<{ latitude: number; l
           longitude: position.coords.longitude,
         });
       },
-      // Error callback: reject with descriptive error message
       (error) => {
         reject(new Error(`Location access denied: ${error.message}`));
       },

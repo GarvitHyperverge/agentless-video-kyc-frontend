@@ -10,7 +10,7 @@ const SelfiePage: React.FC = () => {
     error,
     videoRef,
     openCamera,
-    closeCamera,
+    setIsCameraOpen,
     capturePhoto,
     removeImage,
     retakePhoto,
@@ -248,7 +248,7 @@ const SelfiePage: React.FC = () => {
 
             {/* Close button */}
             <button
-              onClick={closeCamera}
+              onClick={() => setIsCameraOpen(false)}
               className="absolute top-4 right-4 p-2 bg-black/50 hover:bg-black/70 rounded-full transition-colors z-10"
             >
               <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">

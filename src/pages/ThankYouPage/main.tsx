@@ -1,15 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useSessionRecording } from '../../services/sessionRecording/context';
 import { completeVerificationSession } from '../../services/api/verificationSessions';
-import { useSessionValidation } from '../../utils/hooks/useSessionValidation';
-import { getToken, validateSession } from '../../utils/session';
+import { getToken } from '../../utils/session';
 
 // Module-level flag that persists across component remounts (StrictMode)
 let hasStartedVerification = false;
 
 const ThankYouPage: React.FC = () => {
   const { uploadRecording } = useSessionRecording();
-  useSessionValidation(); // Auto-validates on mount
   const [isUploadComplete, setIsUploadComplete] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -21,10 +19,9 @@ const ThankYouPage: React.FC = () => {
     hasStartedVerification = true;
 
     const handleCompleteVerification = async () => {
-      let token: string;
-      try {
-        token = validateSession();
-      } catch (err) {
+      // Route is already protected by VerificationProtectedRoute, so token must exist
+      const token = getToken();
+      if (!token) {
         console.error('No token found');
         setError('Session not found');
         return;

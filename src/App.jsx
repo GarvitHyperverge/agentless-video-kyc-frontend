@@ -9,6 +9,7 @@ import SessionsListPage from './pages/AuditSessions/main';
 import SessionDetailPage from './pages/AuditSessionDetail/main';
 import RecordingIndicator from './components/RecordingIndicator';
 import ProtectedRoute from './components/ProtectedRoute';
+import VerificationProtectedRoute from './components/VerificationProtectedRoute';
 
 function App() {
   return (
@@ -23,28 +24,18 @@ function App() {
         
         {/* User Verification Flow */}
         <Route path="/verify/:token" element={<LandingPage />} />
-        <Route path="/verify/pan" element={<PanPage />} />
-        <Route path="/verify/otp" element={<OtpPage />} />
-        <Route path="/verify/selfie" element={<SelfiePage />} />
-        <Route path="/verify/complete" element={<ThankYouPage />} />
+        <Route element={<VerificationProtectedRoute />}>
+          <Route path="/verify/pan" element={<PanPage />} />
+          <Route path="/verify/otp" element={<OtpPage />} />
+          <Route path="/verify/selfie" element={<SelfiePage />} />
+          <Route path="/verify/complete" element={<ThankYouPage />} />
+        </Route>
         
         {/* Admin Audit Flow - Protected Routes */}
-        <Route
-          path="/audit/sessions"
-          element={
-            <ProtectedRoute>
-              <SessionsListPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/audit/sessions/:sessionUid"
-          element={
-            <ProtectedRoute>
-              <SessionDetailPage />
-            </ProtectedRoute>
-          }
-        />
+        <Route element={<ProtectedRoute />}>
+          <Route path="/audit/sessions" element={<SessionsListPage />} />
+          <Route path="/audit/sessions/:sessionUid" element={<SessionDetailPage />} />
+        </Route>
       </Routes>
     </BrowserRouter>
   );

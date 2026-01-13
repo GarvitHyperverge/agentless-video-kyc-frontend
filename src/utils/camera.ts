@@ -16,7 +16,7 @@ export const capturePhotoFromVideo = (video: HTMLVideoElement): Promise<Blob> =>
   // Draw the entire video frame
   ctx.drawImage(video, 0, 0);
 
-  // Convert canvas to Blob instead of base64
+  // Convert canvas to Blob 
   return new Promise((resolve, reject) => {
     canvas.toBlob(
       (blob) => {
