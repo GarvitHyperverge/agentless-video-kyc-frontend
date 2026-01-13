@@ -11,6 +11,7 @@ import {
 import { saveSessionMetadata } from '../../services/api/sessionMetadata';
 import { useSessionRecording } from '../../services/sessionRecording/context';
 import { setToken, validateSession } from '../../utils/session';
+import { storeLocation } from '../../utils/location';
 
 export const useLanding = () => {
   const navigate = useNavigate();
@@ -79,6 +80,9 @@ export const useLanding = () => {
         ipAddress,
         deviceType: getDeviceType(),
       };
+
+      // Store location for watermarking
+      storeLocation(locationResult.latitude, locationResult.longitude);
 
       // Call API to save session metadata
       const response = await saveSessionMetadata({

@@ -1,1 +1,1 @@
-export type RecordingStatus = 'idle' | 'recording' | 'recorded' | 'uploading';
+export type RecordingStatus = 'idle' | 'recording' | 'processing' | 'recorded' | 'uploading';

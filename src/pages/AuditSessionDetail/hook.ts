@@ -2,10 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   getSessionDetails,
-  updateSessionStatus,
 } from '../../services/api/auditSessions';
 import { updateAuditStatus } from '../../services/api/verificationSessions';
-import { SessionDetails, UpdateStatusPayload } from '../AuditSessions/types';
+import { SessionDetails } from '../AuditSessions/types';
 
 export const useSessionDetail = () => {
   const { sessionUid } = useParams<{ sessionUid: string }>();
@@ -15,8 +14,6 @@ export const useSessionDetail = () => {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
-  const [showRejectModal, setShowRejectModal] = useState(false);
-  const [showFlagModal, setShowFlagModal] = useState(false);
 
   const fetchSessionDetails = useCallback(async () => {
     if (!sessionUid) {
@@ -84,54 +81,6 @@ export const useSessionDetail = () => {
     fetchSessionDetails();
   }, [fetchSessionDetails]);
 
-  const handleStatusUpdate = async (
-    status: 'approved' | 'rejected' | 'flagged',
-    reason?: string
-  ) => {
-    if (!sessionUid) return;
-
-    setIsUpdating(true);
-    setError(null);
-    setSuccessMessage(null);
-
-    try {
-      const payload: UpdateStatusPayload = { status };
-      if (reason) {
-        payload.reason = reason;
-      }
-
-      const response = await updateSessionStatus(sessionUid, payload);
-      if (response.success) {
-        setSuccessMessage(
-          `Session ${status} successfully!`
-        );
-        // Refresh session data
-        await fetchSessionDetails();
-        // Close modals
-        setShowRejectModal(false);
-        setShowFlagModal(false);
-      } else {
-        setError(response.message || 'Failed to update session status');
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update session status');
-    } finally {
-      setIsUpdating(false);
-    }
-  };
-
-  const handleApprove = () => {
-    handleStatusUpdate('approved');
-  };
-
-  const handleReject = (reason: string) => {
-    handleStatusUpdate('rejected', reason);
-  };
-
-  const handleFlag = (reason: string) => {
-    handleStatusUpdate('flagged', reason);
-  };
-
   const handleAuditStatusUpdate = async (auditStatus: 'pass' | 'fail') => {
     if (!sessionUid) return;
 
@@ -167,13 +116,6 @@ export const useSessionDetail = () => {
     error,
     successMessage,
     isUpdating,
-    showRejectModal,
-    showFlagModal,
-    setShowRejectModal,
-    setShowFlagModal,
-    handleApprove,
-    handleReject,
-    handleFlag,
     handleAuditStatusUpdate,
     navigate,
   };

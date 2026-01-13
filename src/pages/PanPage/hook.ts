@@ -7,6 +7,10 @@ import { getDeviceType } from '../LandingPage/utils';
 import { useCameraCapture } from '../../utils/hooks/useCameraCapture';
 import { useUploadHandler } from '../../utils/hooks/useUploadHandler';
 import { createObjectUrl, revokeObjectUrl } from '../../utils/objectUrl';
+import { getToken } from '../../utils/session';
+import { getJWTTimestamp } from '../../utils/jwt';
+import { getStoredLocation } from '../../utils/location';
+import { watermarkImage } from '../../utils/watermark';
 
 export const usePanPage = () => {
   const { 
@@ -129,13 +133,30 @@ export const usePanPage = () => {
     if (!blob) return;
 
     try {
-      // Convert Blob to File for upload
-      const file = new File([blob], `pan_${activeSide}.jpg`, { type: 'image/jpeg' });
+      // Get token and location for watermarking
+      const token = getToken();
+      const location = getStoredLocation();
+
+      if (!token || !location) {
+        setCameraError('Missing token or location data. Please refresh and try again.');
+        return;
+      }
+
+      // Extract timestamp from JWT
+      const timestamp = getJWTTimestamp(token);
+      console.log('Watermarking PAN image:', { timestamp, location, activeSide });
+
+      // Watermark the image
+      const watermarkedBlob = await watermarkImage(blob, timestamp, location.latitude, location.longitude);
+      console.log('PAN image watermarked successfully:', { originalSize: blob.size, watermarkedSize: watermarkedBlob.size });
+
+      // Convert watermarked Blob to File for upload
+      const file = new File([watermarkedBlob], `pan_${activeSide}.jpg`, { type: 'image/jpeg' });
       
-      // Create object URL for display
+      // Create object URL for display (use original blob for preview)
       const imageUrl = createObjectUrl(blob);
 
-      // Save image for the active side and close camera
+      // Save watermarked file and preview URL
       setPanImages((prev) => ({ 
         ...prev, 
         [activeSide]: { file, url: imageUrl } 
@@ -143,7 +164,7 @@ export const usePanPage = () => {
       stopCamera();
       setActiveSide(null);
     } catch (err) {
-      console.error('Capture error:', err);
+      console.error('Capture/watermarking error:', err);
       setCameraError('Failed to capture photo. Please try again.');
     }
   };
@@ -151,7 +172,7 @@ export const usePanPage = () => {
   /**
    * Handles PAN card image file upload from user's local system
    * 
-   * Stores the File object directly and creates an object URL for display.
+   * Watermarks the image and stores it for upload.
    */
   const handlePanImageFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -160,15 +181,38 @@ export const usePanPage = () => {
     setUploadError(null);
 
     try {
-      // Create object URL for display
+      // Get token and location for watermarking
+      const token = getToken();
+      const location = getStoredLocation();
+
+      if (!token || !location) {
+        setUploadError('Missing token or location data. Please refresh and try again.');
+        return;
+      }
+
+      // Extract timestamp from JWT
+      const timestamp = getJWTTimestamp(token);
+      console.log('Watermarking PAN file upload:', { timestamp, location, activeSide, fileName: file.name });
+
+      // Convert file to blob for watermarking
+      const fileBlob = await file.arrayBuffer().then(buffer => new Blob([buffer], { type: file.type }));
+
+      // Watermark the image
+      const watermarkedBlob = await watermarkImage(fileBlob, timestamp, location.latitude, location.longitude);
+      console.log('PAN file watermarked successfully:', { originalSize: fileBlob.size, watermarkedSize: watermarkedBlob.size });
+
+      // Convert watermarked blob to File
+      const watermarkedFile = new File([watermarkedBlob], file.name, { type: file.type });
+
+      // Create object URL for display (use original file for preview)
       const imageUrl = createObjectUrl(file);
       
-      // Save file and URL for the active side
-      setPanImages((prev) => ({ ...prev, [activeSide]: { file, url: imageUrl } }));
+      // Save watermarked file and preview URL
+      setPanImages((prev) => ({ ...prev, [activeSide]: { file: watermarkedFile, url: imageUrl } }));
       setActiveSide(null);
     } catch (err) {
       setUploadError('Failed to process image. Please try again.');
-      console.error('Image processing error:', err);
+      console.error('Image processing/watermarking error:', err);
     } finally {
       // Reset file input to allow selecting same file again
       if (fileInputRef.current) {

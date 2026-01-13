@@ -5,6 +5,10 @@ import { useSessionValidation } from '../../utils/hooks/useSessionValidation';
 import { useCameraCapture } from '../../utils/hooks/useCameraCapture';
 import { useUploadHandler } from '../../utils/hooks/useUploadHandler';
 import { createObjectUrl, revokeObjectUrl } from '../../utils/objectUrl';
+import { getToken } from '../../utils/session';
+import { getJWTTimestamp } from '../../utils/jwt';
+import { getStoredLocation } from '../../utils/location';
+import { watermarkImage } from '../../utils/watermark';
 
 export const useSelfiePage = () => {
   useSessionValidation(); // Auto-validates on mount
@@ -56,10 +60,25 @@ export const useSelfiePage = () => {
     if (!blob) return;
 
     try {
-      // Convert Blob to File for upload
-      const file = new File([blob], 'selfie.jpg', { type: 'image/jpeg' });
+      // Get token and location for watermarking
+      const token = getToken();
+      const location = getStoredLocation();
+
+      if (!token || !location) {
+        setCameraError('Missing token or location data. Please refresh and try again.');
+        return;
+      }
+
+      // Extract timestamp from JWT
+      const timestamp = getJWTTimestamp(token);
+
+      // Watermark the image
+      const watermarkedBlob = await watermarkImage(blob, timestamp, location.latitude, location.longitude);
+
+      // Convert watermarked Blob to File for upload
+      const file = new File([watermarkedBlob], 'selfie.jpg', { type: 'image/jpeg' });
       
-      // Create object URL for display
+      // Create object URL for display (use original blob for preview)
       const imageUrl = createObjectUrl(blob);
 
       setSelfieImage({ imageFile: file, imageUrl });

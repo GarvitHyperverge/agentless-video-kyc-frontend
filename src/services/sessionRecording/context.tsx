@@ -1,7 +1,10 @@
 import React, { createContext, useContext, useRef, useState, useCallback } from 'react';
 import { uploadSessionRecording } from '../api/sessionRecording';
-import { validateSession } from '../../utils/session';
+import { validateSession} from '../../utils/session';
 import { SessionRecordingContextType } from './type';
+import { getJWTTimestamp } from '../../utils/jwt';
+import { getStoredLocation } from '../../utils/location';
+import { watermarkVideo } from '../../utils/watermark';
 
 const SessionRecordingContext = createContext<SessionRecordingContextType | null>(null);
 
@@ -149,16 +152,38 @@ export const SessionRecordingProvider: React.FC<{ children: React.ReactNode }> =
     }
 
     // Stop recording and get blob
-    const blob = await stopRecording();
+    const originalBlob = await stopRecording();
     
-    if (!blob || blob.size === 0) {
+    if (!originalBlob || originalBlob.size === 0) {
       console.error('No recording data to upload');
       return false;
     }
 
     try {
-      console.log(`Uploading session recording: ${(blob.size / 1024 / 1024).toFixed(2)}MB`);
-      const response = await uploadSessionRecording(token, blob);
+      // Get location for watermarking
+      const location = getStoredLocation();
+
+      let blobToUpload = originalBlob;
+      
+      if (location) {
+        try {
+          // Extract timestamp from JWT
+          const timestamp = getJWTTimestamp(token);
+          
+          // Watermark the video
+          console.log('Watermarking session recording...');
+          blobToUpload = await watermarkVideo(originalBlob, timestamp, location.latitude, location.longitude);
+          console.log('Session recording watermarked successfully');
+        } catch (err) {
+          console.warn('Failed to watermark video, using original:', err);
+          // Continue with original blob if watermarking fails
+        }
+      } else {
+        console.warn('Location data not available, uploading without watermark');
+      }
+
+      console.log(`Uploading session recording: ${(blobToUpload.size / 1024 / 1024).toFixed(2)}MB`);
+      const response = await uploadSessionRecording(token, blobToUpload);
       
       if (response.success) {
         console.log('Session recording uploaded successfully:', response.data.videoPath);

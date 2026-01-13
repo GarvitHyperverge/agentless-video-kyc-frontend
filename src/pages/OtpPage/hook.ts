@@ -7,6 +7,10 @@ import { useSessionRecording } from '../../services/sessionRecording/context';
 import { useUploadHandler } from '../../utils/hooks/useUploadHandler';
 import { attachStreamToVideo } from '../../utils/stream';
 import { createObjectUrl, revokeObjectUrl } from '../../utils/objectUrl';
+import { getToken } from '../../utils/session';
+import { getJWTTimestamp } from '../../utils/jwt';
+import { getStoredLocation } from '../../utils/location';
+import { watermarkVideo } from '../../utils/watermark';
 
 export const useOtpPage = () => {
   // Shared hooks
@@ -29,6 +33,7 @@ export const useOtpPage = () => {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const watermarkingAbortedRef = useRef<boolean>(false);
 
   // Use upload handler hook
   const { isProcessing, uploadError, setUploadError, handleUpload } = useUploadHandler({
@@ -86,6 +91,9 @@ export const useOtpPage = () => {
       return;
     }
 
+    // Reset watermarking abort flag
+    watermarkingAbortedRef.current = false;
+
     // Reset chunks array for new recording
     chunksRef.current = [];
     
@@ -121,6 +129,9 @@ export const useOtpPage = () => {
     if (mediaRecorderRef.current && recordingStatus === 'recording') {
       const mediaRecorder = mediaRecorderRef.current;
       
+      // Reset watermarking abort flag
+      watermarkingAbortedRef.current = false;
+      
       // Create a promise that resolves when recording fully stops
       const stopPromise = new Promise<void>((resolve) => {
         mediaRecorder.onstop = () => {
@@ -138,13 +149,60 @@ export const useOtpPage = () => {
         timerRef.current = null;
       }
 
-      // Wait for recording to fully stop, then create blob
-      stopPromise.then(() => {
-        const blob = new Blob(chunksRef.current, { type: 'video/webm' });
-        const url = createObjectUrl(blob);
-        setVideoBlob(blob);
-        setVideoUrl(url);
-        setRecordingStatus('recorded');
+      // Set status to processing while watermarking
+      setRecordingStatus('processing');
+
+      // Wait for recording to fully stop, then create and watermark blob
+      stopPromise.then(async () => {
+        // Check if watermarking was aborted
+        if (watermarkingAbortedRef.current) {
+          return;
+        }
+
+        const originalBlob = new Blob(chunksRef.current, { type: 'video/webm' });
+        
+        // Get token and location for watermarking
+        const token = getToken();
+        const location = getStoredLocation();
+
+        if (!token || !location) {
+          console.error('Missing token or location data for watermarking');
+          // Use original blob if watermarking fails
+          if (!watermarkingAbortedRef.current) {
+            const url = createObjectUrl(originalBlob);
+            setVideoBlob(originalBlob);
+            setVideoUrl(url);
+            setRecordingStatus('recorded');
+          }
+          return;
+        }
+
+        try {
+          // Extract timestamp from JWT
+          const timestamp = getJWTTimestamp(token);
+
+          // Watermark the video (this may take time, so check abort flag)
+          const watermarkedBlob = await watermarkVideo(originalBlob, timestamp, location.latitude, location.longitude);
+          
+          // Check again if watermarking was aborted during processing
+          if (watermarkingAbortedRef.current) {
+            return;
+          }
+          
+          const url = createObjectUrl(watermarkedBlob);
+          setVideoBlob(watermarkedBlob);
+          setVideoUrl(url);
+          setRecordingStatus('recorded');
+        } catch (err) {
+          console.error('Watermarking error:', err);
+          // Fallback to original blob if watermarking fails
+          if (!watermarkingAbortedRef.current) {
+            const url = createObjectUrl(originalBlob);
+            setVideoBlob(originalBlob);
+            setVideoUrl(url);
+            setRecordingStatus('recorded');
+          }
+        }
       });
     }
   };
@@ -155,6 +213,28 @@ export const useOtpPage = () => {
    * Stream remains active - no need to restart it
    */
   const retakeVideo = async () => {
+    // Abort any ongoing watermarking process
+    watermarkingAbortedRef.current = true;
+    
+    // Stop any active recording
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      try {
+        mediaRecorderRef.current.stop();
+      } catch (e) {
+        // Ignore errors
+      }
+      mediaRecorderRef.current = null;
+    }
+    
+    // Clear chunks
+    chunksRef.current = [];
+    
+    // Clear timer
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    
     // Revoke object URL to free memory
     revokeObjectUrl(videoUrl);
     setVideoBlob(null);
@@ -162,12 +242,30 @@ export const useOtpPage = () => {
     setRecordingTime(0);
     setUploadError(null);
     setError(null);
+    
+    // Reset camera ready state to show loading
+    setIsCameraReady(false);
     setRecordingStatus('idle');
 
-    // Ensure shared stream is attached to video element
-    const sharedStream = getSharedStream();
-    attachStreamToVideo(videoRef.current, sharedStream, () => {
-      setIsCameraReady(true);
+    // Clear video element and reattach shared stream
+    if (videoRef.current) {
+      // Clear any existing srcObject (blob URL or previous stream)
+      videoRef.current.srcObject = null;
+      videoRef.current.load(); // Reset video element
+    }
+
+    // Use requestAnimationFrame to ensure DOM is updated before reattaching stream
+    requestAnimationFrame(() => {
+      const sharedStream = getSharedStream();
+      if (sharedStream && videoRef.current) {
+        attachStreamToVideo(videoRef.current, sharedStream, () => {
+          setIsCameraReady(true);
+        });
+        // Ensure video plays
+        videoRef.current?.play().catch((err) => {
+          console.warn('Failed to play video after retake:', err);
+        });
+      }
     });
   };
 
