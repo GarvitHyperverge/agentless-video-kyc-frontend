@@ -18,7 +18,7 @@ interface UseCameraCaptureReturn {
  * Handles stream initialization, video element attachment, and photo capture
  */
 export const useCameraCapture = (): UseCameraCaptureReturn => {
-  const { getSharedStream, isStreamInitialized, startRecording } = useSessionRecording();
+  const { getSharedStream, recordingStream, startRecording } = useSessionRecording();
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isCameraReady, setIsCameraReady] = useState(false);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
@@ -27,7 +27,7 @@ export const useCameraCapture = (): UseCameraCaptureReturn => {
   useEffect(() => {
     const initializeStream = async () => {
       try {
-        if (!isStreamInitialized) {
+        if (!recordingStream) {
           await startRecording();
         }
       } catch (err) {
@@ -36,7 +36,7 @@ export const useCameraCapture = (): UseCameraCaptureReturn => {
     };
 
     initializeStream();
-  }, [isStreamInitialized, startRecording]);
+  }, [recordingStream, startRecording]);
 
   // Attach stream to video element when camera modal opens
   useEffect(() => {

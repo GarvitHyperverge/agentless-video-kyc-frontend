@@ -133,9 +133,8 @@ export const watermarkStream = (
 
   // Create video element to display the stream
   const video = document.createElement('video');
-  video.srcObject = stream;
-  video.autoplay = true;
-  video.playsInline = true;
+  video.srcObject = stream; // Assign the MediaStream to the video element so it can play the stream
+  video.autoplay = true; // Required: video must be playing for canvas.drawImage() to extract frames continuously. 
   video.muted = true; // Mute to prevent audio feedback loop
 
   // Create canvas to draw watermarked frames
@@ -159,33 +158,44 @@ export const watermarkStream = (
   const timeStr = `${hours}:${minutes}:${seconds}`;
   const watermarkText = `${locationStr} | ${dateStr} | ${timeStr}`;
 
-  // Setup watermark style
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-  ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)';
-  ctx.font = 'bold 20px Arial';
-  ctx.textAlign = 'right';
-  ctx.textBaseline = 'bottom';
-  ctx.lineWidth = 3;
-
-  // Initialize canvas dimensions (will be updated when metadata loads)
+  // Initialize canvas dimensions and watermark style (will be updated when metadata loads)
+  // Flag to control the drawing loop - prevents multiple loops from starting simultaneously
   let isDrawing = false;
+  let fontSize = 20; // Default, will be recalculated when video metadata loads
+  let padding = 15; // Default, will be recalculated when video metadata loads
 
-  // Draw function that runs continuously
+  /**
+   * Recursive function that continuously draws each video frame with watermark
+   * Runs in an infinite loop via requestAnimationFrame to process frames in real-time
+   */
   const drawFrame = () => {
+    // Safety check: Only draw if video has loaded enough data (readyState >= 2) and canvas is sized
+    // readyState >= 2 means video has HAVE_CURRENT_DATA or higher (enough data to draw current frame)
     if (video.readyState >= 2 && canvas.width > 0 && canvas.height > 0) {
-      // Draw current video frame
+      // Extract current video frame and draw it onto the canvas
+      // This copies the current frame from the video element to the canvas at position (0, 0)
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       
-      // Calculate watermark position
-      const x = canvas.width - 15;
-      const y = canvas.height - 15;
+      // Setup watermark style (recalculated each frame in case dimensions change)
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)';
+      ctx.font = `bold ${fontSize}px Arial`;
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'top';
+      ctx.lineWidth = Math.max(2, fontSize / 8);
       
-      // Draw watermark
-      ctx.strokeText(watermarkText, x, y);
-      ctx.fillText(watermarkText, x, y);
+      // Calculate watermark position (top-right corner with dynamic padding)
+      const x = canvas.width - padding;
+      const y = padding; 
+      
+      // Draw watermark text with outline (stroke) first, then fill for better visibility
+      ctx.strokeText(watermarkText, x, y); 
+      ctx.fillText(watermarkText, x, y);   
     }
     
-    // Continue drawing frames
+    // Continue the loop: Schedule next frame to be drawn
+    // requestAnimationFrame runs at browser refresh rate (~60fps) for smooth processing
+    // Only continue if isDrawing flag is true (prevents infinite loop if stopped)
     if (isDrawing) {
       requestAnimationFrame(drawFrame);
     }
@@ -196,13 +206,16 @@ export const watermarkStream = (
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     
+    // Calculate font size based on video dimensions (similar to image watermarking)
+    fontSize = Math.max(16, Math.min(video.videoWidth, video.videoHeight) / 30);
+    // Calculate padding based on font size (similar to image watermarking)
+    padding = Math.max(10, fontSize / 2);
+    
     // Ensure video plays (required for frames to be available)
     try {
       await video.play();
     } catch (err) {
       console.warn('Video autoplay failed, trying to play:', err);
-      // If autoplay fails, try playing on user interaction
-      // For now, we'll continue - the stream should still work
     }
     
     if (!isDrawing) {
@@ -212,7 +225,7 @@ export const watermarkStream = (
   };
 
   // Capture canvas as video stream (watermarked video)
-  const canvasStream = canvas.captureStream(30); // 30 FPS for smooth video
+  const canvasStream = canvas.captureStream(30); 
   const watermarkedVideoTrack = canvasStream.getVideoTracks()[0];
 
   // Combine watermarked video track with original audio tracks
@@ -224,6 +237,7 @@ export const watermarkStream = (
   // Cleanup function to stop video when stream ends
   const originalStop = watermarkedVideoTrack.stop.bind(watermarkedVideoTrack);
   watermarkedVideoTrack.stop = () => {
+    isDrawing = false; 
     video.srcObject = null;
     originalStop();
   };

@@ -19,16 +19,13 @@ export const useSessionRecording = (): SessionRecordingContextType => {
 export const SessionRecordingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isSessionRecording, setIsSessionRecording] = useState(false);
   const chunksRef = useRef<Blob[]>([]);
-  // Final video recording blob to be uploaded
   const recordingBlobRef = useRef<Blob | null>(null);
   const [recordingStream, setRecordingStream] = useState<MediaStream | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const pausedTracksRef = useRef<MediaStreamTrack[]>([]);
-  const [isStreamInitialized, setIsStreamInitialized] = useState(false);
 
   const startRecording = useCallback(async (): Promise<void> => {
-    // If we already have a stream and recording is active, don't restart
-    if (recordingStream && isSessionRecording) {
+    // If recording is already active, don't restart
+    if (isSessionRecording) {
       console.log('Already recording with shared stream');
       return;
     }
@@ -41,7 +38,7 @@ export const SessionRecordingProvider: React.FC<{ children: React.ReactNode }> =
 
       // Use existing stream or create new one
       let originalStream: MediaStream;
-      if (recordingStream && isStreamInitialized) {
+      if (recordingStream) {
         // Use existing shared stream - just restart recording
         originalStream = recordingStream;
       } else {
@@ -51,7 +48,6 @@ export const SessionRecordingProvider: React.FC<{ children: React.ReactNode }> =
           audio: true,
         });
         setRecordingStream(originalStream);
-        setIsStreamInitialized(true);
         console.log('Shared stream created and initialized');
       }
 
@@ -81,10 +77,8 @@ export const SessionRecordingProvider: React.FC<{ children: React.ReactNode }> =
         }
       }
 
-      chunksRef.current = [];
-
       const mediaRecorder = new MediaRecorder(streamToRecord);
-
+      chunksRef.current = [];
       // Store chunks of data as they become available
       mediaRecorder.ondataavailable = (event) => {
         if (event.data && event.data.size > 0) {
@@ -99,29 +93,7 @@ export const SessionRecordingProvider: React.FC<{ children: React.ReactNode }> =
       console.error('Failed to start session recording:', err);
       throw err;
     }
-  }, [isSessionRecording, recordingStream, isStreamInitialized]);
-
-  const pauseRecording = useCallback(() => {
-    if (recordingStream && mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-      // Pause video tracks but keep audio for session recording
-      const videoTracks = recordingStream.getVideoTracks();
-      pausedTracksRef.current = videoTracks;
-      videoTracks.forEach(track => {
-        track.enabled = false;
-      });
-      console.log('Session recording video paused (audio continues)');
-    }
-  }, [recordingStream]);
-
-  const resumeRecording = useCallback(() => {  
-    if (pausedTracksRef.current.length > 0) {
-      pausedTracksRef.current.forEach(track => {
-        track.enabled = true;
-      });
-      pausedTracksRef.current = [];
-      console.log('Session recording video resumed');
-    }
-  }, []);
+  }, [isSessionRecording, recordingStream]);
 
   const getSharedStream = useCallback(() => {
     return recordingStream;
@@ -145,7 +117,6 @@ export const SessionRecordingProvider: React.FC<{ children: React.ReactNode }> =
       // Clear stream state immediately so UI updates right away
       setRecordingStream(null);
       setIsSessionRecording(false);
-      setIsStreamInitialized(false);
       
       // Checking if recorder is on or not
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
@@ -211,9 +182,6 @@ export const SessionRecordingProvider: React.FC<{ children: React.ReactNode }> =
         stopRecording,
         uploadRecording,
         getSharedStream,
-        pauseRecording,
-        resumeRecording,
-        isStreamInitialized,
       }}
     >
       {children}

@@ -1703,3 +1703,188 @@ The video element must play the video to:
 Without playback, the video element would just be a static blob - we need it to "decode" and "play" the video to access its frames and audio.
 
 ---
+
+### 15. Why `isDrawing` Flag is Required in Real-Time Video Watermarking
+
+**Location:** `src/utils/watermark.ts` (lines 170-200, 214-217, 232-235)
+
+**Overview:**
+The `isDrawing` flag is a boolean that controls the `requestAnimationFrame` drawing loop in the `watermarkStream` function. It serves two critical purposes: preventing duplicate loops and ensuring clean shutdown.
+
+---
+
+#### Scenario 1: Preventing Multiple Drawing Loops
+
+**The Problem:**
+The `video.onloadedmetadata` event can fire multiple times due to:
+- Stream changes or reconnections
+- Browser quirks or timing issues
+- Multiple metadata updates
+
+**What Happens Without `isDrawing`:**
+```typescript
+// First time: onloadedmetadata fires
+drawFrame(); // Starts Loop 1 ✅
+
+// Second time: onloadedmetadata fires again (unexpected!)
+drawFrame(); // Starts Loop 2 ❌ (duplicate!)
+
+// Third time: onloadedmetadata fires again
+drawFrame(); // Starts Loop 3 ❌ (another duplicate!)
+
+// Result: 3 loops all drawing simultaneously = wasted CPU + flickering
+```
+
+**How `isDrawing` Fixes It:**
+```typescript
+if (!isDrawing) {  // Only start if NOT already drawing
+  isDrawing = true;  // Mark as "drawing in progress"
+  drawFrame();  // Start the loop
+}
+```
+
+**Flow:**
+```
+First call: isDrawing = false → starts loop → sets isDrawing = true ✅
+Second call: isDrawing = true → skips starting new loop ✅
+Third call: isDrawing = true → skips starting new loop ✅
+
+Result: Only ONE loop running, no duplicates!
+```
+
+**Key Point:** The check `if (!isDrawing)` prevents multiple loops from starting, even if `onloadedmetadata` fires multiple times.
+
+---
+
+#### Scenario 2: Stopping the Loop When Stream Ends
+
+**The Problem:**
+When the watermarked video track stops (e.g., recording ends, stream closes), the cleanup function sets `video.srcObject = null`. However, the `requestAnimationFrame` loop continues running in the background, wasting CPU cycles.
+
+**What Happens Without Stopping the Loop:**
+```typescript
+// Stream stops
+video.srcObject = null; // Video stops ✅
+
+// BUT: requestAnimationFrame loop is still running! ❌
+// Loop keeps calling drawFrame() every ~16ms:
+drawFrame() → checks video.readyState → fails → does nothing
+drawFrame() → checks video.readyState → fails → does nothing
+drawFrame() → checks video.readyState → fails → does nothing
+// ... continues forever, wasting CPU!
+```
+
+**How `isDrawing` Fixes It:**
+```typescript
+// In cleanup function
+watermarkedVideoTrack.stop = () => {
+  isDrawing = false; // Stop the loop ✅
+  video.srcObject = null;
+  originalStop();
+};
+
+// In drawFrame()
+if (isDrawing) {  // Only continue if flag is true
+  requestAnimationFrame(drawFrame);
+}
+// When isDrawing = false, loop stops scheduling new frames
+```
+
+**Flow:**
+```
+Stream stops → cleanup function runs
+  ↓
+isDrawing = false (stops the loop)
+  ↓
+Next drawFrame() call checks: if (isDrawing) → false
+  ↓
+Doesn't call requestAnimationFrame()
+  ↓
+Loop stops ✅ (no more wasted CPU)
+```
+
+**Key Point:** Setting `isDrawing = false` in the cleanup function ensures the loop stops when the stream ends, preventing wasted CPU cycles.
+
+---
+
+#### Simple Analogy
+
+Think of `isDrawing` like a light switch:
+- **`isDrawing = true`** = Light is ON (loop is running)
+- **`isDrawing = false`** = Light is OFF (loop is stopped)
+
+**Without the switch:**
+- ❌ You can't turn the light off (loop keeps running forever)
+- ❌ Multiple people can turn it on (multiple loops start)
+
+**With the switch:**
+- ✅ You can control when it's on/off
+- ✅ Only one person can turn it on (prevents duplicates)
+- ✅ You can turn it off when done (clean shutdown)
+
+---
+
+#### Code Implementation
+
+**Starting the Loop:**
+```typescript
+video.onloadedmetadata = async () => {
+  // ... setup code ...
+  
+  if (!isDrawing) {  // Prevent duplicates
+    isDrawing = true;  // Mark as active
+    drawFrame();  // Start the loop
+  }
+};
+```
+
+**Controlling the Loop:**
+```typescript
+const drawFrame = () => {
+  // ... draw watermark ...
+  
+  if (isDrawing) {  // Only continue if flag is true
+    requestAnimationFrame(drawFrame);  // Schedule next frame
+  }
+  // If isDrawing = false, loop stops here
+};
+```
+
+**Stopping the Loop:**
+```typescript
+watermarkedVideoTrack.stop = () => {
+  isDrawing = false;  // Stop the loop
+  video.srcObject = null;
+  originalStop();
+};
+```
+
+---
+
+#### Summary
+
+**`isDrawing` is required for:**
+
+1. **Preventing Duplicate Loops:**
+   - `onloadedmetadata` can fire multiple times
+   - Without `isDrawing`, each call would start a new loop
+   - Result: Multiple loops running simultaneously = wasted resources
+
+2. **Clean Shutdown:**
+   - When stream stops, cleanup sets `video.srcObject = null`
+   - Without stopping `isDrawing`, the loop keeps running
+   - Result: Loop continues checking frames forever = wasted CPU
+
+**Without `isDrawing`:**
+- ❌ Multiple loops can start
+- ❌ Loop never stops (wastes CPU)
+- ❌ No control over loop lifecycle
+
+**With `isDrawing`:**
+- ✅ Only one loop can run
+- ✅ Loop stops cleanly when done
+- ✅ Full control over loop lifecycle
+
+This is a critical pattern for managing `requestAnimationFrame` loops in real-time video processing!
+
+---
