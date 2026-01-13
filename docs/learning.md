@@ -1580,3 +1580,126 @@ const [cameraState, setCameraState] = useState<'closed' | 'loading' | 'ready'>('
 Don't try to combine them - they serve different purposes and are set at different times. Having both provides better control and user experience!
 
 ---
+
+### 14. Video Watermarking Process: Parallel Processing Flow
+
+**Location:** `src/utils/watermark.ts` (lines 119-280)
+
+**Overview:**
+The `watermarkVideo` function takes an original video blob, adds a timestamp and location watermark to each frame, preserves the original audio, and returns a new watermarked video blob. The process uses parallel processing to handle video frames and audio simultaneously.
+
+**Parallel Processing Diagram:**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    ORIGINAL VIDEO BLOB                      │
+│                         (Input)                             │
+└────────────────────────────┬────────────────────────────────┘
+                             │
+                             ▼
+                    ┌─────────────────┐
+                    │  Video Element  │
+                    │  (Plays video)  │
+                    └────────┬────────┘
+                             │
+                ┌────────────┴────────────┐
+                │                         │
+                ▼                         ▼
+    ┌───────────────────┐    ┌──────────────────────┐
+    │  VIDEO FRAMES     │    │  AUDIO TRACK        │
+    │  (Visual data)    │    │  (Sound data)       │
+    └──────────┬────────┘    └──────────┬───────────┘
+               │                        │
+               ▼                        ▼
+    ┌───────────────────┐    ┌──────────────────────┐
+    │  Canvas           │    │  AudioContext        │
+    │  • Draw frame     │    │  • Capture audio     │
+    │  • Add watermark  │    │  • Create stream     │
+    └──────────┬────────┘    └──────────┬───────────┘
+               │                        │
+               ▼                        ▼
+    ┌───────────────────┐    ┌──────────────────────┐
+    │  Canvas Stream   │    │  Audio Stream        │
+    │  (Watermarked)    │    │  (Original audio)    │
+    └──────────┬────────┘    └──────────┬───────────┘
+               │                        │
+               └────────────┬───────────┘
+                            │
+                            ▼
+                ┌───────────────────────┐
+                │  COMBINED STREAM       │
+                │  (Video + Audio)      │
+                └───────────┬────────────┘
+                            │
+                            ▼
+                ┌───────────────────────┐
+                │  MediaRecorder         │
+                │  (Records stream)      │
+                └───────────┬────────────┘
+                            │
+                            ▼
+                ┌───────────────────────┐
+                │  Collect Chunks       │
+                │  (Every 200ms)        │
+                └───────────┬────────────┘
+                            │
+                            ▼
+                ┌───────────────────────┐
+                │  Combine Chunks       │
+                │  → Final Blob         │
+                └───────────┬────────────┘
+                            │
+                            ▼
+                ┌───────────────────────┐
+                │  WATERMARKED BLOB     │
+                │  (Video + Audio)      │
+                └───────────────────────┘
+```
+
+**Key Steps Explained:**
+
+1. **Original Video Blob (Input):** The function receives a video blob containing both video and audio data.
+
+2. **Video Element:** The blob is loaded into an off-screen video element using `URL.createObjectURL()`. This element is muted to prevent audio playback through speakers.
+
+3. **Parallel Extraction:**
+   - **Video Frames:** Each frame is drawn to a canvas where the watermark is added
+   - **Audio Track:** The audio is captured from the video element using Web Audio API (`createMediaElementSource`)
+
+4. **Stream Creation:**
+   - **Canvas Stream:** The watermarked canvas frames are captured as a video stream using `canvas.captureStream(15)` (15 FPS)
+   - **Audio Stream:** The audio is routed through `AudioContext` to create an audio stream
+
+5. **Combined Stream:** Both streams are merged into a single `MediaStream` containing watermarked video tracks and original audio tracks.
+
+6. **MediaRecorder:** Records the combined stream, collecting chunks every 200ms.
+
+7. **Chunk Collection:** Each chunk (200ms of video+audio) is stored in an array.
+
+8. **Final Blob:** When recording stops, all chunks are combined into a single watermarked video blob with audio intact.
+
+**Why Parallel Processing?**
+
+- **Efficiency:** Video frames and audio are processed simultaneously, not sequentially
+- **Audio Preservation:** Audio is captured directly from the original video element, ensuring it remains intact
+- **Real-time Processing:** As the video plays, frames are watermarked and recorded in real-time
+
+**Key Technical Details:**
+
+- **Video Element:** Must be played (`video.play()`) to extract frames and audio
+- **Canvas:** Used to draw each frame and overlay the watermark text
+- **Web Audio API:** Captures audio from the video element without playing it through speakers
+- **MediaRecorder:** Records the combined stream at 15 FPS with original audio quality
+- **Chunk Size:** 200ms chunks provide a good balance between file size and processing efficiency
+
+**Why Video Playback is Required:**
+
+The video element must play the video to:
+- Extract individual frames for watermarking
+- Capture the audio track through Web Audio API
+- Trigger the `onplay` event to start MediaRecorder
+- Provide continuous frame data to the canvas
+
+Without playback, the video element would just be a static blob - we need it to "decode" and "play" the video to access its frames and audio.
+
+---

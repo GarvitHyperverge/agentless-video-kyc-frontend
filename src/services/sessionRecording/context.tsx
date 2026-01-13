@@ -4,7 +4,7 @@ import { getToken } from '../../utils/session';
 import { SessionRecordingContextType } from './type';
 import { getJWTTimestamp } from '../../utils/jwt';
 import { getStoredLocation } from '../../utils/location';
-import { watermarkVideo } from '../../utils/watermark';
+import { watermarkStream } from '../../utils/watermark';
 
 const SessionRecordingContext = createContext<SessionRecordingContextType | null>(null);
 
@@ -40,24 +40,50 @@ export const SessionRecordingProvider: React.FC<{ children: React.ReactNode }> =
       }
 
       // Use existing stream or create new one
-      let stream: MediaStream;
+      let originalStream: MediaStream;
       if (recordingStream && isStreamInitialized) {
         // Use existing shared stream - just restart recording
-        stream = recordingStream;
+        originalStream = recordingStream;
       } else {
         // Create new shared stream with front camera + audio
-        stream = await navigator.mediaDevices.getUserMedia({
+        originalStream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
           audio: true,
         });
-        setRecordingStream(stream);
+        setRecordingStream(originalStream);
         setIsStreamInitialized(true);
         console.log('Shared stream created and initialized');
       }
 
+      // Get location and timestamp for watermarking
+      const token = getToken();
+      if (!token) {
+        console.warn('No token found for watermarking, recording without watermark');
+        // Continue without watermarking if token not available
+      }
+
+      const location = getStoredLocation();
+      if (!location) {
+        console.warn('No location found for watermarking, recording without watermark');
+        // Continue without watermarking if location not available
+      }
+
+      // Watermark the stream in real-time if we have token and location
+      let streamToRecord: MediaStream = originalStream;
+      if (token && location) {
+        try {
+          const timestamp = getJWTTimestamp(token);
+          streamToRecord = watermarkStream(originalStream, timestamp, location.latitude, location.longitude);
+          console.log('Stream watermarked in real-time');
+        } catch (err) {
+          console.warn('Failed to watermark stream, recording original:', err);
+          // Continue with original stream if watermarking fails
+        }
+      }
+
       chunksRef.current = [];
 
-      const mediaRecorder = new MediaRecorder(stream);
+      const mediaRecorder = new MediaRecorder(streamToRecord);
 
       // Store chunks of data as they become available
       mediaRecorder.ondataavailable = (event) => {
@@ -68,7 +94,7 @@ export const SessionRecordingProvider: React.FC<{ children: React.ReactNode }> =
       mediaRecorderRef.current = mediaRecorder;
       mediaRecorder.start(1000); // Collect data every second
       setIsSessionRecording(true);
-      console.log('Session recording started with shared stream');
+      console.log('Session recording started with watermarked stream');
     } catch (err) {
       console.error('Failed to start session recording:', err);
       throw err;
@@ -150,38 +176,17 @@ export const SessionRecordingProvider: React.FC<{ children: React.ReactNode }> =
       return false;
     }
 
-    // Stop recording and get blob
-    const originalBlob = await stopRecording();
+    // Stop recording and get blob (already watermarked during recording)
+    const blobToUpload = await stopRecording();
     
-    if (!originalBlob || originalBlob.size === 0) {
+    if (!blobToUpload || blobToUpload.size === 0) {
       console.error('No recording data to upload');
       return false;
     }
 
     try {
-      // Get location for watermarking
-      const location = getStoredLocation();
-
-      let blobToUpload = originalBlob;
-      
-      if (location) {
-        try {
-          // Extract timestamp from JWT
-          const timestamp = getJWTTimestamp(token);
-          
-          // Watermark the video
-          console.log('Watermarking session recording...');
-          blobToUpload = await watermarkVideo(originalBlob, timestamp, location.latitude, location.longitude);
-          console.log('Session recording watermarked successfully');
-        } catch (err) {
-          console.warn('Failed to watermark video, using original:', err);
-          // Continue with original blob if watermarking fails
-        }
-      } else {
-        console.warn('Location data not available, uploading without watermark');
-      }
-
-      console.log(`Uploading session recording: ${(blobToUpload.size / 1024 / 1024).toFixed(2)}MB`);
+      // Video is already watermarked during recording, upload directly
+      console.log(`Uploading session recording (already watermarked): ${(blobToUpload.size / 1024 / 1024).toFixed(2)}MB`);
       const response = await uploadSessionRecording(token, blobToUpload);
       
       if (response.success) {

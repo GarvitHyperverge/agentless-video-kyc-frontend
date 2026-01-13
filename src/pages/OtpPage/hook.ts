@@ -9,7 +9,7 @@ import { createObjectUrl, revokeObjectUrl } from '../../utils/objectUrl';
 import { getToken } from '../../utils/session';
 import { getJWTTimestamp } from '../../utils/jwt';
 import { getStoredLocation } from '../../utils/location';
-import { watermarkVideo } from '../../utils/watermark';
+import { watermarkStream } from '../../utils/watermark';
 
 export const useOtpPage = () => {
   const navigate = useNavigate();
@@ -54,6 +54,7 @@ export const useOtpPage = () => {
 
   /**
    * Start recording video and audio from the shared camera stream
+   * Watermarks the stream in real-time before recording
    * Collects chunks of video data as they become available
    */
   const startRecording = () => {
@@ -63,11 +64,28 @@ export const useOtpPage = () => {
       return;
     }
 
-      // Reset chunks array for new recording
-      chunksRef.current = [];
+    // Get token and location for watermarking
+    const token = getToken();
+    if (!token) {
+      setCameraError('Session not found. Please start the verification process again.');
+      return;
+    }
+
+    const location = getStoredLocation();
+    if (!location) {
+      setCameraError('Missing location data. Please refresh and try again.');
+      return;
+    }
+
+    // Reset chunks array for new recording
+    chunksRef.current = [];
     
-    // Create MediaRecorder with WebM format using shared stream
-    const mediaRecorder = new MediaRecorder(sharedStream, {
+    // Watermark the stream in real-time
+    const timestamp = getJWTTimestamp(token);
+    const watermarkedStream = watermarkStream(sharedStream, timestamp, location.latitude, location.longitude);
+    
+    // Create MediaRecorder with WebM format using watermarked stream
+    const mediaRecorder = new MediaRecorder(watermarkedStream, {
       mimeType: 'video/webm;codecs=vp9,opus',
     });
 
@@ -164,7 +182,7 @@ export const useOtpPage = () => {
 
   /**
    * Upload recorded video to backend and navigate to next step
-   * Watermarks the video before uploading
+   * Video is already watermarked during recording, so we upload directly
    */
   const handleContinue = async () => {
     if (!videoBlob) {
@@ -179,22 +197,13 @@ export const useOtpPage = () => {
       return;
     }
 
-    const location = getStoredLocation();
-    if (!location) {
-      setUploadError('Missing location data. Please refresh and try again.');
-      return;
-    }
-
     setRecordingStatus('uploading');
     setIsProcessing(true);
     setUploadError(null);
 
     try {
-      // Watermark video before uploading
-      const timestamp = getJWTTimestamp(token);
-      const watermarkedBlob = await watermarkVideo(videoBlob, timestamp, location.latitude, location.longitude);
-
-      const response = await uploadOtpVideo(token, otp, watermarkedBlob);
+      // Video is already watermarked during recording, upload directly
+      const response = await uploadOtpVideo(token, otp, videoBlob);
 
       if (response.success) {
         // Clean up object URL before navigating

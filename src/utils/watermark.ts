@@ -107,156 +107,126 @@ export const watermarkImage = async (
 };
 
 /**
- * Watermark a video by extracting frames and adding watermark
- * Note: This processes the video frame by frame. For long videos, consider server-side processing
- * @param videoBlob - Video blob to watermark
+ * Watermark a live video stream in real-time
+ * Takes a MediaStream, adds watermark to each frame, preserves audio, returns watermarked stream
+ * 
+ * @param stream - Original video stream (with video and optionally audio tracks)
  * @param timestamp - Unix timestamp in seconds
  * @param latitude - Latitude coordinate
  * @param longitude - Longitude coordinate
- * @returns Watermarked video blob
+ * @returns Watermarked MediaStream with original audio preserved
  */
-export const watermarkVideo = async (
-  videoBlob: Blob,
+export const watermarkStream = (
+  stream: MediaStream,
   timestamp: number,
   latitude: number,
   longitude: number
-): Promise<Blob> => {
-  return new Promise((resolve, reject) => {
-    const video = document.createElement('video');
-    video.muted = true;
-    video.playsInline = true;
-    const url = URL.createObjectURL(videoBlob);
+): MediaStream => {
+  // Get video track from original stream
+  const videoTrack = stream.getVideoTracks()[0];
+  if (!videoTrack) {
+    throw new Error('No video track found in stream');
+  }
 
-    let mediaRecorder: MediaRecorder | null = null;
-    const chunks: Blob[] = [];
-    let animationFrameId: number | null = null;
+  // Get audio tracks from original stream (preserve all audio tracks)
+  const audioTracks = stream.getAudioTracks();
 
-    const cleanup = () => {
-      if (animationFrameId) {
-        cancelAnimationFrame(animationFrameId);
-      }
-      URL.revokeObjectURL(url);
-      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-        try {
-          mediaRecorder.stop();
-        } catch (e) {
-          // Ignore errors when stopping
-        }
-      }
-    };
+  // Create video element to display the stream
+  const video = document.createElement('video');
+  video.srcObject = stream;
+  video.autoplay = true;
+  video.playsInline = true;
+  video.muted = true; // Mute to prevent audio feedback loop
 
-    video.onloadedmetadata = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+  // Create canvas to draw watermarked frames
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    throw new Error('Could not get canvas context');
+  }
 
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        cleanup();
-        reject(new Error('Could not get canvas context'));
-        return;
-      }
+  // Create watermark text
+  const date = new Date(timestamp * 1000);
+  const day = date.getDate().toString().padStart(2, '0');
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const year = date.getFullYear();
+  const hours = date.getHours().toString().padStart(2, '0');
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  const seconds = date.getSeconds().toString().padStart(2, '0');
+  
+  const locationStr = `${latitude.toFixed(6)},${longitude.toFixed(6)}`;
+  const dateStr = `${day}-${month}-${year}`;
+  const timeStr = `${hours}:${minutes}:${seconds}`;
+  const watermarkText = `${locationStr} | ${dateStr} | ${timeStr}`;
 
-      // Prepare watermark text
-      const date = new Date(timestamp * 1000);
-      const day = date.getDate().toString().padStart(2, '0');
-      const month = (date.getMonth() + 1).toString().padStart(2, '0');
-      const year = date.getFullYear();
-      const hours = date.getHours().toString().padStart(2, '0');
-      const minutes = date.getMinutes().toString().padStart(2, '0');
-      const seconds = date.getSeconds().toString().padStart(2, '0');
+  // Setup watermark style
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)';
+  ctx.font = 'bold 20px Arial';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'bottom';
+  ctx.lineWidth = 3;
+
+  // Initialize canvas dimensions (will be updated when metadata loads)
+  let isDrawing = false;
+
+  // Draw function that runs continuously
+  const drawFrame = () => {
+    if (video.readyState >= 2 && canvas.width > 0 && canvas.height > 0) {
+      // Draw current video frame
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       
-      const locationStr = `${latitude.toFixed(6)},${longitude.toFixed(6)}`;
-      const dateStr = `${day}-${month}-${year}`;
-      const timeStr = `${hours}:${minutes}:${seconds}`;
-      const watermarkText = `${locationStr} | ${dateStr} | ${timeStr}`;
+      // Calculate watermark position
+      const x = canvas.width - 15;
+      const y = canvas.height - 15;
+      
+      // Draw watermark
+      ctx.strokeText(watermarkText, x, y);
+      ctx.fillText(watermarkText, x, y);
+    }
+    
+    // Continue drawing frames
+    if (isDrawing) {
+      requestAnimationFrame(drawFrame);
+    }
+  };
 
-      // Set watermark style
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-      ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)';
-      ctx.font = 'bold 20px Arial';
-      ctx.textAlign = 'right';
-      ctx.textBaseline = 'bottom';
-      ctx.lineWidth = 3;
+  // Start drawing frames once video metadata is loaded and playing
+  video.onloadedmetadata = async () => {
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    
+    // Ensure video plays (required for frames to be available)
+    try {
+      await video.play();
+    } catch (err) {
+      console.warn('Video autoplay failed, trying to play:', err);
+      // If autoplay fails, try playing on user interaction
+      // For now, we'll continue - the stream should still work
+    }
+    
+    if (!isDrawing) {
+      isDrawing = true;
+      drawFrame();
+    }
+  };
 
-      const padding = 15;
-      const x = canvas.width - padding;
-      const y = canvas.height - padding;
+  // Capture canvas as video stream (watermarked video)
+  const canvasStream = canvas.captureStream(30); // 30 FPS for smooth video
+  const watermarkedVideoTrack = canvasStream.getVideoTracks()[0];
 
-      // Create MediaRecorder to capture watermarked frames
-      try {
-        // Use lower FPS for watermarking to reduce processing time (15 FPS is usually sufficient)
-        const stream = canvas.captureStream(15); // 15 FPS for faster processing
-        mediaRecorder = new MediaRecorder(stream, {
-          mimeType: 'video/webm;codecs=vp9,opus',
-        });
+  // Combine watermarked video track with original audio tracks
+  const combinedStream = new MediaStream([
+    watermarkedVideoTrack,
+    ...audioTracks,
+  ]);
 
-        mediaRecorder.ondataavailable = (event) => {
-          if (event.data && event.data.size > 0) {
-            chunks.push(event.data);
-          }
-        };
+  // Cleanup function to stop video when stream ends
+  const originalStop = watermarkedVideoTrack.stop.bind(watermarkedVideoTrack);
+  watermarkedVideoTrack.stop = () => {
+    video.srcObject = null;
+    originalStop();
+  };
 
-        mediaRecorder.onstop = () => {
-          cleanup();
-          const watermarkedBlob = new Blob(chunks, { type: 'video/webm' });
-          resolve(watermarkedBlob);
-        };
-
-        mediaRecorder.onerror = () => {
-          cleanup();
-          reject(new Error('Failed to watermark video'));
-        };
-
-        // Start recording with larger timeslice for better performance
-        mediaRecorder.start(200); // Collect data every 200ms for better performance
-      } catch (err) {
-        cleanup();
-        reject(new Error('Failed to initialize video watermarking'));
-        return;
-      }
-
-      // Draw frames with watermark
-      const drawFrame = () => {
-        if (video.ended || video.paused || !mediaRecorder || mediaRecorder.state === 'inactive') {
-          if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-            mediaRecorder.stop();
-          }
-          return;
-        }
-
-        // Draw video frame
-        ctx.drawImage(video, 0, 0);
-
-        // Draw watermark
-        ctx.strokeText(watermarkText, x, y);
-        ctx.fillText(watermarkText, x, y);
-
-        animationFrameId = requestAnimationFrame(drawFrame);
-      };
-
-      video.onplay = () => {
-        drawFrame();
-      };
-
-      video.onended = () => {
-        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-          mediaRecorder.stop();
-        }
-      };
-
-      video.play().catch(() => {
-        cleanup();
-        reject(new Error('Failed to play video for watermarking'));
-      });
-    };
-
-    video.onerror = () => {
-      cleanup();
-      reject(new Error('Failed to load video for watermarking'));
-    };
-
-    video.src = url;
-    video.load();
-  });
+  return combinedStream;
 };
