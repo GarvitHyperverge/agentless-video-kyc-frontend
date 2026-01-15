@@ -9,7 +9,6 @@ import SessionsListPage from './pages/AuditSessions/main';
 import SessionDetailPage from './pages/AuditSessionDetail/main';
 import RecordingIndicator from './components/RecordingIndicator';
 import ProtectedRoute from './components/ProtectedRoute';
-import VerificationProtectedRoute from './components/VerificationProtectedRoute';
 
 function App() {
   return (
@@ -22,14 +21,12 @@ function App() {
         {/* Audit Login */}
         <Route path="/audit/login" element={<LoginPage />} />
         
-        {/* User Verification Flow */}
-        <Route path="/verify/:token" element={<LandingPage />} />
-        <Route element={<VerificationProtectedRoute />}>
-          <Route path="/verify/pan" element={<PanPage />} />
-          <Route path="/verify/otp" element={<OtpPage />} />
-          <Route path="/verify/selfie" element={<SelfiePage />} />
-          <Route path="/verify/complete" element={<ThankYouPage />} />
-        </Route>
+        {/* User Verification Flow - Backend validates session via cookie */}
+        <Route path="/verify" element={<LandingPage />} />
+        <Route path="/verify/pan" element={<PanPage />} />
+        <Route path="/verify/otp" element={<OtpPage />} />
+        <Route path="/verify/selfie" element={<SelfiePage />} />
+        <Route path="/verify/complete" element={<ThankYouPage />} />
         
         {/* Admin Audit Flow - Protected Routes */}
         <Route element={<ProtectedRoute />}>

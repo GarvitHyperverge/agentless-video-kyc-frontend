@@ -1,7 +1,6 @@
 import { BACKEND_URL } from './config';
 
 interface SessionMetadataPayload {
-  token: string;
   latitude: number;
   longitude: number;
   cameraPermission: boolean;
@@ -35,8 +34,8 @@ export const saveSessionMetadata = async (payload: SessionMetadataPayload): Prom
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${payload.token}`,
     },
+    credentials: 'include', // Send HTTP-only cookie automatically
     body: JSON.stringify({
       latitude: payload.latitude,
       longitude: payload.longitude,
@@ -49,6 +48,10 @@ export const saveSessionMetadata = async (payload: SessionMetadataPayload): Prom
   });
 
   if (!response.ok) {
+    if (response.status === 401) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || 'Authentication failed. Please refresh and try again.');
+    }
     throw new Error('Failed to save session metadata');
   }
 

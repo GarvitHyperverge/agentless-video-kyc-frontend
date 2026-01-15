@@ -6,8 +6,6 @@ import { uploadOtpVideo } from '../../services/api/otpVideo';
 import { useSessionRecording } from '../../services/sessionRecording/context';
 import { useCameraCapture } from '../../utils/hooks/useCameraCapture';
 import { createObjectUrl, revokeObjectUrl } from '../../utils/objectUrl';
-import { getToken } from '../../utils/session';
-import { getJWTTimestamp } from '../../utils/jwt';
 import { getStoredLocation } from '../../utils/location';
 import { watermarkStream } from '../../utils/watermark';
 import { fixWebMDuration } from '../../utils/fixWebMDuration';
@@ -65,13 +63,6 @@ export const useOtpPage = () => {
       return;
     }
 
-    // Get token and location for watermarking
-    const token = getToken();
-    if (!token) {
-      setCameraError('Session not found. Please start the verification process again.');
-      return;
-    }
-
     const location = getStoredLocation();
     if (!location) {
       setCameraError('Missing location data. Please refresh and try again.');
@@ -81,8 +72,8 @@ export const useOtpPage = () => {
     // Reset chunks array for new recording
     chunksRef.current = [];
     
-    // Watermark the stream in real-time
-    const timestamp = getJWTTimestamp(token);
+    // Watermark the stream in real-time using current timestamp
+    const timestamp = Math.floor(Date.now() / 1000); // Current time in seconds
     const watermarkedStream = watermarkStream(sharedStream, timestamp, location.latitude, location.longitude);
     
     // Create MediaRecorder with WebM format using watermarked stream
@@ -214,20 +205,14 @@ export const useOtpPage = () => {
       return;
     }
 
-    // Route is already protected by VerificationProtectedRoute, so token must exist
-    const token = getToken();
-    if (!token) {
-      setUploadError('Session not found. Please start the verification process again.');
-      return;
-    }
-
     setRecordingStatus('uploading');
     setIsProcessing(true);
     setUploadError(null);
 
     try {
       // Video is already watermarked during recording, upload directly
-      const response = await uploadOtpVideo(token, otp, videoBlob);
+      // Cookie is automatically sent with credentials: 'include'
+      const response = await uploadOtpVideo(otp, videoBlob);
 
       if (response.success) {
         // Clean up object URL before navigating

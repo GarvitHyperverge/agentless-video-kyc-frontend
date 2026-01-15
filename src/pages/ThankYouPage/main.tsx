@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useSessionRecording } from '../../services/sessionRecording/context';
 import { completeVerificationSession } from '../../services/api/verificationSessions';
-import { getToken } from '../../utils/session';
 
 // Module-level flag that persists across component remounts (StrictMode)
 let hasStartedVerification = false;
@@ -19,14 +18,8 @@ const ThankYouPage: React.FC = () => {
     hasStartedVerification = true;
 
     const handleCompleteVerification = async () => {
-      // Route is already protected by VerificationProtectedRoute, so token must exist
-      const token = getToken();
-      if (!token) {
-        console.error('No token found');
-        setError('Session not found');
-        return;
-      }
-
+      // Backend validates session via HTTP-only cookie on API calls
+      // If cookie is invalid, API will return 401 and error will be handled
       try {
         // Upload session recording first
         console.log('Uploading session recording...');
@@ -39,7 +32,8 @@ const ThankYouPage: React.FC = () => {
         console.log('Session recording uploaded successfully');
         
         // Only complete verification session after successful upload
-        await completeVerificationSession({ token });
+        // Cookie is automatically sent with credentials: 'include'
+        await completeVerificationSession();
         console.log('Verification session completed successfully');
         
         setIsUploadComplete(true);
@@ -194,7 +188,7 @@ const ThankYouPage: React.FC = () => {
         {/* Footer text */}
         {isUploadComplete && (
           <p className="text-slate-500 text-sm mt-6">
-            Reference ID: {getToken() || 'N/A'}
+            Verification completed successfully
           </p>
         )}
       </div>

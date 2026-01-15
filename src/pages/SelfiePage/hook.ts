@@ -4,8 +4,6 @@ import { SelfieImage } from './type';
 import { uploadSelfie } from '../../services/api/selfie';
 import { useCameraCapture } from '../../utils/hooks/useCameraCapture';
 import { createObjectUrl, revokeObjectUrl } from '../../utils/objectUrl';
-import { getToken } from '../../utils/session';
-import { getJWTTimestamp } from '../../utils/jwt';
 import { getStoredLocation } from '../../utils/location';
 import { watermarkImage } from '../../utils/watermark';
 
@@ -85,13 +83,6 @@ export const useSelfiePage = () => {
       return;
     }
 
-    // Route is already protected by VerificationProtectedRoute, so token must exist
-    const token = getToken();
-    if (!token) {
-      setUploadError('Session not found. Please start the verification process again.');
-      return;
-    }
-
     const location = getStoredLocation();
     if (!location) {
       setUploadError('Missing location data. Please refresh and try again.');
@@ -102,14 +93,16 @@ export const useSelfiePage = () => {
     setUploadError(null);
 
     try {
-      const timestamp = getJWTTimestamp(token);
+      // Use current timestamp for watermarking (in seconds)
+      const timestamp = Math.floor(Date.now() / 1000);
 
       // Watermark the image
       const watermarkedBlob = await watermarkImage(selfieImage.imageFile, timestamp, location.latitude, location.longitude);
 
       const watermarkedFile = new File([watermarkedBlob], selfieImage.imageFile.name, { type: selfieImage.imageFile.type });
 
-      const response = await uploadSelfie({ token, imageFile: watermarkedFile });
+      // Cookie is automatically sent with credentials: 'include'
+      const response = await uploadSelfie({ imageFile: watermarkedFile });
 
       if (response.success) {
         // Clean up object URL before navigating

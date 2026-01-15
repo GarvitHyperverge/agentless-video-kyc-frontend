@@ -12,13 +12,11 @@ interface OtpVideoUploadResponse {
 
 /**
  * Upload OTP video to backend using FormData
- * @param token - Token
  * @param otp - OTP code
  * @param videoBlob - Video blob from MediaRecorder
  * @returns Upload response with video path
  */
 export const uploadOtpVideo = async (
-  token: string,
   otp: string,
   videoBlob: Blob
 ): Promise<OtpVideoUploadResponse> => {
@@ -36,13 +34,15 @@ export const uploadOtpVideo = async (
 
   const response = await fetch(`${BACKEND_URL}/otp-video/upload`, {
     method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-    },
+    credentials: 'include', // Send HTTP-only cookie automatically
     body: formData,
   });
 
   if (!response.ok) {
+    if (response.status === 401) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || 'Authentication failed. Please refresh and try again.');
+    }
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.message || 'Failed to upload OTP video');
   }

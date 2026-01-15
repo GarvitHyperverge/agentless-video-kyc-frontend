@@ -1,8 +1,6 @@
 import React, { createContext, useContext, useRef, useState, useCallback } from 'react';
 import { uploadSessionRecording } from '../api/sessionRecording';
-import { getToken } from '../../utils/session';
 import { SessionRecordingContextType } from './type';
-import { getJWTTimestamp } from '../../utils/jwt';
 import { getStoredLocation } from '../../utils/location';
 import { watermarkStream } from '../../utils/watermark';
 import { fixWebMDuration } from '../../utils/fixWebMDuration';
@@ -52,24 +50,19 @@ export const SessionRecordingProvider: React.FC<{ children: React.ReactNode }> =
         console.log('Shared stream created and initialized');
       }
 
-      // Get location and timestamp for watermarking
-      const token = getToken();
-      if (!token) {
-        console.warn('No token found for watermarking, recording without watermark');
-        // Continue without watermarking if token not available
-      }
-
+      // Get location for watermarking
       const location = getStoredLocation();
       if (!location) {
         console.warn('No location found for watermarking, recording without watermark');
         // Continue without watermarking if location not available
       }
 
-      // Watermark the stream in real-time if we have token and location
+      // Watermark the stream in real-time if we have location
       let streamToRecord: MediaStream = originalStream;
-      if (token && location) {
+      if (location) {
         try {
-          const timestamp = getJWTTimestamp(token);
+          // Use current timestamp for watermarking (in seconds)
+          const timestamp = Math.floor(Date.now() / 1000);
           streamToRecord = watermarkStream(originalStream, timestamp, location.latitude, location.longitude);
           console.log('Stream watermarked in real-time');
         } catch (err) {
@@ -158,13 +151,6 @@ export const SessionRecordingProvider: React.FC<{ children: React.ReactNode }> =
   }, [recordingStream]);
 
   const uploadRecording = useCallback(async (): Promise<boolean> => {
-    // uploadRecording is only called from protected routes, so token must exist
-    const token = getToken();
-    if (!token) {
-      console.error('No token found');
-      return false;
-    }
-
     // Stop recording and get blob (already watermarked during recording)
     const blobToUpload = await stopRecording();
     
@@ -175,8 +161,9 @@ export const SessionRecordingProvider: React.FC<{ children: React.ReactNode }> =
 
     try {
       // Video is already watermarked during recording, upload directly
+      // Cookie is automatically sent with credentials: 'include'
       console.log(`Uploading session recording (already watermarked): ${(blobToUpload.size / 1024 / 1024).toFixed(2)}MB`);
-      const response = await uploadSessionRecording(token, blobToUpload);
+      const response = await uploadSessionRecording(blobToUpload);
       
       if (response.success) {
         console.log('Session recording uploaded successfully:', response.data.videoPath);

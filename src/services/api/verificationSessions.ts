@@ -1,8 +1,6 @@
 import { BACKEND_URL } from './config';
 
-interface CompleteVerificationSessionPayload {
-  token: string;
-}
+// No payload needed - cookie is sent automatically
 
 interface CompleteVerificationSessionResponse {
   success: boolean;
@@ -23,18 +21,24 @@ interface UpdateAuditStatusResponse {
   };
 }
 
-export const completeVerificationSession = async (
-  payload: CompleteVerificationSessionPayload
-): Promise<CompleteVerificationSessionResponse> => {
+/**
+ * Complete verification session
+ * Cookie is automatically sent with credentials: 'include'
+ */
+export const completeVerificationSession = async (): Promise<CompleteVerificationSessionResponse> => {
   const response = await fetch(`${BACKEND_URL}/verification-sessions/complete`, {
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${payload.token}`,
     },
+    credentials: 'include', // Send HTTP-only cookie automatically
   });
 
   if (!response.ok) {
+    if (response.status === 401) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || 'Authentication failed. Please refresh and try again.');
+    }
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.message || 'Failed to complete verification session');
   }

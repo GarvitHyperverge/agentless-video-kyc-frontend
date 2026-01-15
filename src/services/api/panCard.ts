@@ -3,7 +3,6 @@ import { validateFileSize } from '../../utils/fileValidation';
 import { createUploadFormData } from '../../utils/formData';
 
 interface PanCardUploadPayload {
-  token: string;
   frontImageFile: File;
   backImageFile: File;
 }
@@ -36,13 +35,15 @@ export const uploadPanCardImages = async (payload: PanCardUploadPayload): Promis
 
   const response = await fetch(`${BACKEND_URL}/pan-card`, {
     method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${payload.token}`,
-    },
+    credentials: 'include', // Send HTTP-only cookie automatically
     body: formData,
   });
 
   if (!response.ok) {
+    if (response.status === 401) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || 'Authentication failed. Please refresh and try again.');
+    }
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.message || 'Failed to upload PAN card images');
   }

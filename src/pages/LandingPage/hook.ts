@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { SessionMetadata } from './type';
 import {
   getDeviceType,
@@ -10,29 +10,17 @@ import {
 } from './utils';
 import { saveSessionMetadata } from '../../services/api/sessionMetadata';
 import { useSessionRecording } from '../../services/sessionRecording/context';
-import { setToken, validateSession } from '../../utils/session';
 import { storeLocation } from '../../utils/location';
 
 export const useLanding = () => {
   const navigate = useNavigate();
-  const { token } = useParams<{ token: string }>();
   const [showPermissionsModal, setShowPermissionsModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { startRecording } = useSessionRecording();
 
-  useEffect(() => {
-    if (token) {
-      setToken(token);
-    } else {
-      alert('No token found. Please use a valid verification link.');
-    }
-  }, [token]);
-
   const handleStartVerification = () => {
-    if (!validateSession()) {
-      alert('No session ID found. Please use a valid verification link.');
-      return;
-    }
+    // Cookie is already set when user visits /verify
+    // Verification session already exists - we just need to update it with metadata
     setShowPermissionsModal(true);
   };
 
@@ -80,11 +68,9 @@ export const useLanding = () => {
       // Store location for watermarking
       storeLocation(locationResult.latitude, locationResult.longitude);
 
-      // Call API to save session metadata
-      const response = await saveSessionMetadata({
-        token: token!,
-        ...metadata,
-      });
+      // Update existing verification session with metadata
+      // Cookie is already set and automatically sent with credentials: 'include'
+      const response = await saveSessionMetadata(metadata);
 
       if (response.success) {
         // Start the shared stream after permissions are granted

@@ -4,9 +4,7 @@ import { PanImages } from './type';
 import { uploadPanCardImages } from '../../services/api/panCard';
 import { useCameraCapture } from '../../utils/hooks/useCameraCapture';
 import { createObjectUrl, revokeObjectUrl } from '../../utils/objectUrl';
-import { getJWTTimestamp } from '../../utils/jwt';
 import { getStoredLocation } from '../../utils/location';
-import { getToken } from '../../utils/session';
 import { watermarkImage } from '../../utils/watermark';
 
 export const usePanPage = () => {
@@ -146,13 +144,6 @@ export const usePanPage = () => {
       return;
     }
 
-    // Route is already protected by VerificationProtectedRoute, so token must exist
-    const token = getToken();
-    if (!token) {
-      setUploadError('Session not found. Please start the verification process again.');
-      return;
-    }
-
     const location = getStoredLocation();
     if (!location) {
       setUploadError('Missing location data. Please refresh and try again.');
@@ -163,7 +154,8 @@ export const usePanPage = () => {
     setUploadError(null);
 
     try {
-      const timestamp = getJWTTimestamp(token);
+      // Use current timestamp for watermarking (in seconds)
+      const timestamp = Math.floor(Date.now() / 1000);
 
       // Watermark both images 
       const watermarkedFrontBlob = await watermarkImage(panImages.front.file!, timestamp, location.latitude, location.longitude);
@@ -172,8 +164,8 @@ export const usePanPage = () => {
       const watermarkedFrontFile = new File([watermarkedFrontBlob], panImages.front.file!.name, { type: panImages.front.file!.type });
       const watermarkedBackFile = new File([watermarkedBackBlob], panImages.back.file!.name, { type: panImages.back.file!.type });
 
+      // Cookie is automatically sent with credentials: 'include'
       const response = await uploadPanCardImages({
-        token,
         frontImageFile: watermarkedFrontFile,
         backImageFile: watermarkedBackFile,
       });

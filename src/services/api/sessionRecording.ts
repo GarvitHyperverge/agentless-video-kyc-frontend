@@ -12,12 +12,10 @@ interface SessionRecordingUploadResponse {
 
 /**
  * Upload session recording video to backend using FormData
- * @param token - Token from localStorage
  * @param videoBlob - Video blob from MediaRecorder
  * @returns Upload response with video path
  */
 export const uploadSessionRecording = async (
-  token: string,
   videoBlob: Blob
 ): Promise<SessionRecordingUploadResponse> => {
   // Check file size (10 min recording ≈ 10-50MB, max 100MB for safety)
@@ -34,13 +32,15 @@ export const uploadSessionRecording = async (
 
   const response = await fetch(`${BACKEND_URL}/session-recording/upload`, {
     method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-    },
+    credentials: 'include', // Send HTTP-only cookie automatically
     body: formData,
   });
 
   if (!response.ok) {
+    if (response.status === 401) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || 'Authentication failed. Please refresh and try again.');
+    }
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.message || 'Failed to upload session recording');
   }
