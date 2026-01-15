@@ -5,6 +5,7 @@ import { SessionRecordingContextType } from './type';
 import { getJWTTimestamp } from '../../utils/jwt';
 import { getStoredLocation } from '../../utils/location';
 import { watermarkStream } from '../../utils/watermark';
+import { fixWebMDuration } from '../../utils/fixWebMDuration';
 
 const SessionRecordingContext = createContext<SessionRecordingContextType | null>(null);
 
@@ -120,16 +121,33 @@ export const SessionRecordingProvider: React.FC<{ children: React.ReactNode }> =
       
       // Checking if recorder is on or not
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-        mediaRecorderRef.current.onstop = () => {
-          // Small delay to ensure all chunks are collected
-          setTimeout(() => {
+        mediaRecorderRef.current.onstop = async () => {
+          // Wait longer to ensure all chunks are collected and MediaRecorder has finished writing
+          setTimeout(async () => {
             const finalChunks = [...chunksRef.current];
-            const blob = new Blob(finalChunks, { type: 'video/webm' });
-            recordingBlobRef.current = blob;
             
-            console.log('Session recording stopped, blob size:', blob.size, 'chunks:', finalChunks.length);
+            const originalBlob = new Blob(finalChunks, { type: 'video/webm' });
+            console.log('Created blob from', finalChunks.length, 'chunks, total size:', originalBlob.size, 'bytes');
+            
+            // Fix duration metadata (MediaRecorder sometimes doesn't write it correctly)
+            // This ensures the video has correct duration metadata when uploaded to backend
+            let blob: Blob;
+            try {
+              console.log('Fixing WebM duration metadata for session recording...');
+              blob = await fixWebMDuration(originalBlob);
+              
+              // Log success - the blob now has correct duration metadata
+              console.log('Session recording duration fixed successfully. Original size:', originalBlob.size, 'bytes, Fixed size:', blob.size, 'bytes');
+              
+            } catch (err) {
+              console.error('Failed to fix WebM duration metadata:', err);
+              console.warn('Using original blob - duration metadata may be incorrect');
+              blob = originalBlob;
+            }
+            
+            recordingBlobRef.current = blob;
             resolve(blob);
-          }, 100);
+          }, 500); // Increased delay to ensure all chunks are collected
         };
         mediaRecorderRef.current.stop();
       } else {

@@ -10,6 +10,7 @@ import { getToken } from '../../utils/session';
 import { getJWTTimestamp } from '../../utils/jwt';
 import { getStoredLocation } from '../../utils/location';
 import { watermarkStream } from '../../utils/watermark';
+import { fixWebMDuration } from '../../utils/fixWebMDuration';
 
 export const useOtpPage = () => {
   const navigate = useNavigate();
@@ -123,17 +124,40 @@ export const useOtpPage = () => {
 
       // Wait for recording to fully stop, then create blob (watermarking happens on upload)
       stopPromise.then(async () => {
+        // Small delay to ensure all chunks are fully collected
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
         // Check if chunks were cleared (user clicked retake)
         if (chunksRef.current.length === 0) {
           return;
         }
 
-        // Create blob from recorded chunks (no watermarking yet)
+        // Validate chunk sizes
+        const totalSize = chunksRef.current.reduce((sum, chunk) => sum + chunk.size, 0);
+        if (totalSize === 0) {
+          console.warn('All video chunks are empty');
+          return;
+        }
+
+        // Create blob from recorded chunks
         const originalBlob = new Blob(chunksRef.current, { type: 'video/webm' });
+        console.log('Created OTP video blob from', chunksRef.current.length, 'chunks, total size:', originalBlob.size, 'bytes');
+        
+        // Fix duration metadata (MediaRecorder sometimes doesn't write it correctly)
+        let fixedBlob: Blob;
+        try {
+          console.log('Fixing WebM duration metadata for OTP video...');
+          fixedBlob = await fixWebMDuration(originalBlob);
+          console.log('OTP video duration fixed successfully. Original size:', originalBlob.size, 'bytes, Fixed size:', fixedBlob.size, 'bytes');
+        } catch (err) {
+          console.error('Failed to fix WebM duration metadata for OTP video:', err);
+          console.warn('Using original blob - duration metadata may be incorrect');
+          fixedBlob = originalBlob;
+        }
         
         // Create preview URL and save blob (watermarking will happen on upload)
-        const url = createObjectUrl(originalBlob);
-        setVideoBlob(originalBlob);
+        const url = createObjectUrl(fixedBlob);
+        setVideoBlob(fixedBlob);
         setVideoUrl(url);
         setRecordingStatus('recorded');
         setIsCameraOpen(false); // Close camera after recording
