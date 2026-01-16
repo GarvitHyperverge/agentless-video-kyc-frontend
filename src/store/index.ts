@@ -1,18 +1,14 @@
 import { configureStore } from '@reduxjs/toolkit';
 import { useDispatch, useSelector, TypedUseSelectorHook } from 'react-redux';
-import sessionReducer from './slices/sessionSlice';
-import uiReducer from './slices/uiSlice';
 
 export const store = configureStore({
   reducer: {
-    session: sessionReducer,
-    ui: uiReducer,
+    // Add reducers here when needed
   },
 });
 
 // TypeScript type for the entire Redux state tree
 // Automatically inferred from the store configuration
-// Represents: { session: {...}, ui: {...} }
 export type RootState = ReturnType<typeof store.getState>;
 
 // Typed wrapper around useSelector hook
