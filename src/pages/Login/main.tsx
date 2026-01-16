@@ -1,18 +1,7 @@
-import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useLogin } from './hook';
-import { isAuditorAuthenticated } from '../../utils/auth';
 
 const LoginPage = () => {
-  const navigate = useNavigate();
   const { formData, isLoading, error, handleInputChange, handleSubmit } = useLogin();
-
-  // Redirect if already authenticated
-  useEffect(() => {
-    if (isAuditorAuthenticated()) {
-      navigate('/audit/sessions', { replace: true });
-    }
-  }, [navigate]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center relative overflow-hidden">

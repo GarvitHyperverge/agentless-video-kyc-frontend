@@ -7,11 +7,19 @@ export interface LoginCredentials {
 
 export interface LoginResponse {
   success: boolean;
+  data?: {
+    success: boolean;
+    message?: string;
+    username?: string;
+  };
+  error?: string;
   message?: string;
 }
 
 /**
  * Login as auditor
+ * On success, sets HTTP-only cookie (auditToken) automatically
+ * Cookie is automatically sent to /api/audit/* endpoints
  */
 export const loginAsAuditor = async (
   credentials: LoginCredentials
@@ -22,22 +30,30 @@ export const loginAsAuditor = async (
       headers: {
         'Content-Type': 'application/json',
       },
+      credentials: 'include', // Required to receive HTTP-only cookie
       body: JSON.stringify(credentials),
     });
 
+    const data = await response.json();
+
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
+      // Handle error responses (400, 401, 500)
       return {
         success: false,
-        message: errorData.message || 'Login failed. Please check your credentials.',
+        error: data.error || data.message || 'Login failed. Please check your credentials.',
+        message: data.error || data.message || 'Login failed. Please check your credentials.',
       };
     }
 
-    const data = await response.json();
-    return data;
+    // Success response: { success: true, data: { success: true, message: "Login successful" } }
+    return {
+      success: true,
+      data: data.data || { success: true, message: data.message || 'Login successful' },
+    };
   } catch (error) {
     return {
       success: false,
+      error: 'Network error. Please try again later.',
       message: 'Network error. Please try again later.',
     };
   }

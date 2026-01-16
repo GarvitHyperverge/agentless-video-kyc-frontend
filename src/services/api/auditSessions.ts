@@ -21,6 +21,7 @@ export const getSessionsList = async (
     headers: {
       'Content-Type': 'application/json',
     },
+    credentials: 'include', // Send HTTP-only cookie (auditToken) automatically
   });
 
   if (!response.ok) {
@@ -41,6 +42,7 @@ export const getSessionDetails = async (
     headers: {
       'Content-Type': 'application/json',
     },
+    credentials: 'include', // Send HTTP-only cookie (auditToken) automatically
   });
 
   if (!response.ok) {
@@ -65,6 +67,7 @@ export const updateSessionStatus = async (
       headers: {
         'Content-Type': 'application/json',
       },
+      credentials: 'include', // Send HTTP-only cookie (auditToken) automatically
       body: JSON.stringify(payload),
     }
   );

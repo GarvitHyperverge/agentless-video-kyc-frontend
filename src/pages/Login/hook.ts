@@ -32,11 +32,15 @@ export const useLogin = () => {
     try {
       const response = await loginAsAuditor(formData);
 
-      if (response.success) {
-        setAuditorLoggedIn(formData.username);
+      if (response.success && response.data?.success) {
+        // HTTP-only cookie (auditToken) is automatically set by the server
+        // Store username from response and set client-side flag for routing/UI state
+        const username = response.data.username || formData.username;
+        setAuditorLoggedIn(username);
         navigate('/audit/sessions');
       } else {
-        setError(response.message || 'Login failed. Please check your credentials.');
+        // Handle error from response.error or response.message
+        setError(response.error || response.message || 'Login failed. Please check your credentials.');
       }
     } catch (err) {
       setError('An unexpected error occurred. Please try again.');

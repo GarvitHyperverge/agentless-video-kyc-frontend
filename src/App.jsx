@@ -8,7 +8,6 @@ import LoginPage from './pages/Login/main';
 import SessionsListPage from './pages/AuditSessions/main';
 import SessionDetailPage from './pages/AuditSessionDetail/main';
 import RecordingIndicator from './components/RecordingIndicator';
-import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
   return (
@@ -28,11 +27,9 @@ function App() {
         <Route path="/verify/selfie" element={<SelfiePage />} />
         <Route path="/verify/complete" element={<ThankYouPage />} />
         
-        {/* Admin Audit Flow - Protected Routes */}
-        <Route element={<ProtectedRoute />}>
-          <Route path="/audit/sessions" element={<SessionsListPage />} />
-          <Route path="/audit/sessions/:sessionUid" element={<SessionDetailPage />} />
-        </Route>
+        {/* Admin Audit Flow - Backend validates authentication via HTTP-only cookie */}
+        <Route path="/audit/sessions" element={<SessionsListPage />} />
+        <Route path="/audit/sessions/:sessionUid" element={<SessionDetailPage />} />
       </Routes>
     </BrowserRouter>
   );
