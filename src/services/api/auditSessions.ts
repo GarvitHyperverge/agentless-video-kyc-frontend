@@ -79,3 +79,40 @@ export const updateSessionStatus = async (
 
   return response.json();
 };
+
+/**
+ * Logout from audit session
+ * Clears the server-side authentication cookie
+ */
+export interface LogoutResponse {
+  success: boolean;
+  data?: {
+    success: boolean;
+    message: string;
+  };
+  error?: string;
+}
+
+export const logoutAuditSession = async (): Promise<LogoutResponse> => {
+  const response = await fetch(`${AUDIT_BASE_URL}/logout`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include', // Required to send/receive cookies
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    return {
+      success: false,
+      error: data.error || 'Logout failed',
+    };
+  }
+
+  return {
+    success: true,
+    data: data.data || { success: true, message: 'Logout successful' },
+  };
+};

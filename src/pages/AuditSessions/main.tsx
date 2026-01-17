@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useSessionsList } from './hook';
 import { StatusBadge } from '../../components/StatusBadge';
 import { setAuditorLoggedOut, getAuditorUsername } from '../../utils/auth';
+import { logoutAuditSession } from '../../services/api/auditSessions';
 
 const SessionsListPage: React.FC = () => {
   const navigate = useNavigate();
@@ -16,9 +17,16 @@ const SessionsListPage: React.FC = () => {
     handleRowClick,
   } = useSessionsList();
 
-  const handleLogout = () => {
-    setAuditorLoggedOut();
-    navigate('/audit/login', { replace: true });
+  const handleLogout = async () => {
+    try {
+      await logoutAuditSession();
+    } catch (error) {
+      console.error('Logout request failed:', error);
+    } finally {
+      // Clear local state and navigate regardless of API call result
+      setAuditorLoggedOut();
+      navigate('/audit/login', { replace: true });
+    }
   };
 
   const formatDate = (dateString: string) => {
