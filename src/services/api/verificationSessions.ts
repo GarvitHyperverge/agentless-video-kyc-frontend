@@ -2,6 +2,15 @@ import { BACKEND_URL } from './config';
 
 // No payload needed - cookie is sent automatically
 
+interface ActivateVerificationSessionPayload {
+  temp_token: string;
+}
+
+interface ActivateVerificationSessionResponse {
+  success: boolean;
+  message?: string;
+}
+
 interface CompleteVerificationSessionResponse {
   success: boolean;
   message?: string;
@@ -20,6 +29,34 @@ interface UpdateAuditStatusResponse {
     audit_status: string;
   };
 }
+
+/**
+ * Activate verification session with temp_token
+ * This sets the session cookie (HTTP-only) in the browser
+ * @param payload - Payload with temp_token from CRED redirect
+ * @returns Response indicating success or failure
+ */
+export const activateVerificationSession = async (
+  payload: ActivateVerificationSessionPayload
+): Promise<ActivateVerificationSessionResponse> => {
+  const response = await fetch(`${BACKEND_URL}/verification-sessions/activate`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include', // IMPORTANT: This enables cookies
+    body: JSON.stringify({
+      temp_token: payload.temp_token,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || 'Failed to activate verification session');
+  }
+
+  return response.json();
+};
 
 /**
  * Complete verification session

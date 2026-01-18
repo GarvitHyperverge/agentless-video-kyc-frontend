@@ -21,11 +21,13 @@ function App() {
         <Route path="/audit/login" element={<LoginPage />} />
         
         {/* User Verification Flow - Backend validates session via cookie */}
-        <Route path="/verify" element={<LandingPage />} />
+        {/* Specific routes first (pan, otp, selfie, complete) */}
         <Route path="/verify/pan" element={<PanPage />} />
         <Route path="/verify/otp" element={<OtpPage />} />
         <Route path="/verify/selfie" element={<SelfiePage />} />
         <Route path="/verify/complete" element={<ThankYouPage />} />
+        {/* Dynamic route for temp_token (e.g., /verify/abc123xyz) - must come after specific routes */}
+        <Route path="/verify/:temp_token" element={<LandingPage />} />
         
         {/* Admin Audit Flow - Backend validates authentication via HTTP-only cookie */}
         <Route path="/audit/sessions" element={<SessionsListPage />} />

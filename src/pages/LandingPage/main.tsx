@@ -2,7 +2,7 @@ import { useLanding } from './hook';
 import PermissionsModal from './modal';
 
 const LandingPage = () => {
-  const { handleStartVerification, showPermissionsModal, handleCloseModal, handleConfirmPermissions, isLoading } = useLanding();
+  const { handleStartVerification, showPermissionsModal, handleCloseModal, handleConfirmPermissions, isLoading, activationError } = useLanding();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-emerald-900 flex items-center justify-center relative overflow-hidden">
@@ -58,26 +58,70 @@ const LandingPage = () => {
             Complete your identity verification securely and seamlessly in just a few minutes.
           </p>
 
-          {/* CTA Button */}
-          <button
-            onClick={handleStartVerification}
-            className="group relative w-full py-4 px-8 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold text-lg rounded-xl shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 overflow-hidden"
-          >
-            <span className="relative z-10 flex items-center justify-center gap-3">
-              Start Verification
-              <svg
-                className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-200"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
+          {/* Activation Error */}
+          {activationError && (
+            <div className="mb-6 p-4 bg-red-500/20 border border-red-500/30 rounded-xl text-red-300 text-sm flex items-center gap-3">
+              <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={2}
-                  d="M13 7l5 5m0 0l-5 5m5-5H6"
+                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                 />
               </svg>
+              {activationError}
+            </div>
+          )}
+
+          {/* CTA Button */}
+          <button
+            onClick={handleStartVerification}
+            disabled={isLoading}
+            className="group relative w-full py-4 px-8 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold text-lg rounded-xl shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+          >
+            <span className="relative z-10 flex items-center justify-center gap-3">
+              {isLoading ? (
+                <>
+                  <svg
+                    className="animate-spin h-5 w-5"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                  Processing...
+                </>
+              ) : (
+                <>
+                  Start Verification
+                  <svg
+                    className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-200"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M13 7l5 5m0 0l-5 5m5-5H6"
+                    />
+                  </svg>
+                </>
+              )}
             </span>
             <div className="absolute inset-0 bg-gradient-to-r from-teal-500 to-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
           </button>

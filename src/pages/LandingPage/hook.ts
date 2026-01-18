@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { SessionMetadata } from './type';
 import {
   getDeviceType,
@@ -9,19 +9,56 @@ import {
   requestLocationPermission,
 } from './utils';
 import { saveSessionMetadata } from '../../services/api/sessionMetadata';
+import { activateVerificationSession } from '../../services/api/verificationSessions';
 import { useSessionRecording } from '../../services/sessionRecording/context';
 import { storeLocation } from '../../utils/location';
 
 export const useLanding = () => {
   const navigate = useNavigate();
+  const params = useParams<{ temp_token?: string }>();
   const [showPermissionsModal, setShowPermissionsModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [activationError, setActivationError] = useState<string | null>(null);
+  const [tempToken, setTempToken] = useState<string | null>(null);
   const { startRecording } = useSessionRecording();
 
-  const handleStartVerification = () => {
-    // Cookie is already set when user visits /verify
-    // Verification session already exists - we just need to update it with metadata
-    setShowPermissionsModal(true);
+  // Extract temp_token from URL path parameter (e.g., /verify/abc123xyz)
+  useEffect(() => {
+    if (params.temp_token) {
+      setTempToken(params.temp_token);
+    }
+  }, [params.temp_token]);
+
+  const handleStartVerification = async () => {
+    // If temp_token exists, activate the session first
+    if (tempToken) {
+      setIsLoading(true);
+      setActivationError(null);
+
+      try {
+        // Call the activation endpoint with temp_token
+        const response = await activateVerificationSession({
+          temp_token: tempToken,
+        });
+
+        if (response.success) {
+          // Cookie is now set - proceed with permissions modal
+          setTempToken(null); // Clear temp_token after successful activation
+          setShowPermissionsModal(true);
+        } else {
+          setActivationError('Failed to activate verification session. Please try again.');
+        }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Failed to activate verification session. Please try again.';
+        setActivationError(errorMessage);
+        console.error('Activation error:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      // No temp_token - assume cookie is already set (legacy /verify route)
+      setShowPermissionsModal(true);
+    }
   };
 
   const handleCloseModal = () => {
@@ -100,5 +137,6 @@ export const useLanding = () => {
     handleCloseModal,
     handleConfirmPermissions,
     isLoading,
+    activationError,
   };
 };
