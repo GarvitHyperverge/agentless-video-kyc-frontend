@@ -59,6 +59,7 @@ export const updateAuditStatus = async (
     headers: {
       'Content-Type': 'application/json',
     },
+    credentials: 'include', // Required for cookie-based authentication
     body: JSON.stringify({
       session_id: payload.session_id,
       audit_status: payload.audit_status,

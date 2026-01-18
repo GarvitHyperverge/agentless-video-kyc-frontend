@@ -5,6 +5,7 @@ import { MatchIndicator } from '../../components/MatchIndicator';
 import { ImageLightbox } from '../../components/ImageLightbox';
 import { VideoPlayer } from '../../components/VideoPlayer';
 import { setAuditorLoggedOut, getAuditorUsername } from '../../utils/auth';
+import { logoutAuditSession } from '../../services/api/auditSessions';
 
 const SessionDetailPage: React.FC = () => {
   const {
@@ -202,9 +203,15 @@ const SessionDetailPage: React.FC = () => {
               ← Back to List
             </button>
             <button
-              onClick={() => {
-                setAuditorLoggedOut();
-                navigate('/audit/login', { replace: true });
+              onClick={async () => {
+                try {
+                  await logoutAuditSession();
+                } catch (error) {
+                  console.error('Logout request failed:', error);
+                } finally {
+                  setAuditorLoggedOut();
+                  navigate('/audit/login', { replace: true });
+                }
               }}
               className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors flex items-center gap-2"
             >

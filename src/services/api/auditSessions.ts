@@ -5,6 +5,7 @@ import {
   UpdateStatusPayload,
   UpdateStatusResponse,
 } from '../../pages/AuditSessions/types';
+import { authenticatedFetch } from './authenticatedFetch';
 
 const AUDIT_BASE_URL = `${BACKEND_URL}/audit`;
 
@@ -17,11 +18,8 @@ export const getSessionsList = async (
   const url = new URL(`${AUDIT_BASE_URL}/pending-sessions`);
   url.searchParams.append('filter', filter);
 
-  const response = await fetch(url.toString(), {
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    credentials: 'include', // Send HTTP-only cookie (auditToken) automatically
+  const response = await authenticatedFetch(url.toString(), {
+    method: 'GET',
   });
 
   if (!response.ok) {
@@ -38,11 +36,8 @@ export const getSessionsList = async (
 export const getSessionDetails = async (
   sessionUid: string
 ): Promise<SessionDetailsResponse> => {
-  const response = await fetch(`${AUDIT_BASE_URL}/sessions/${sessionUid}`, {
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    credentials: 'include', // Send HTTP-only cookie (auditToken) automatically
+  const response = await authenticatedFetch(`${AUDIT_BASE_URL}/sessions/${sessionUid}`, {
+    method: 'GET',
   });
 
   if (!response.ok) {
@@ -60,14 +55,10 @@ export const updateSessionStatus = async (
   sessionUid: string,
   payload: UpdateStatusPayload
 ): Promise<UpdateStatusResponse> => {
-  const response = await fetch(
+  const response = await authenticatedFetch(
     `${AUDIT_BASE_URL}/sessions/${sessionUid}/status`,
     {
       method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include', // Send HTTP-only cookie (auditToken) automatically
       body: JSON.stringify(payload),
     }
   );

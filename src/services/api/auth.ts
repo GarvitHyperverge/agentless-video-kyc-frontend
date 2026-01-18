@@ -58,3 +58,47 @@ export const loginAsAuditor = async (
     };
   }
 };
+
+/**
+ * Refresh access token
+ * Public endpoint (no access token required). Validates refresh token cookie and generates new access token.
+ */
+export interface RefreshTokenResponse {
+  success: boolean;
+  data?: {
+    success: boolean;
+    message: string;
+  };
+  error?: string;
+}
+
+export const refreshAccessToken = async (): Promise<RefreshTokenResponse> => {
+  try {
+    const response = await fetch(`${BACKEND_URL}/audit/refresh`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include', // Required to send refresh token cookie
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: data.error || 'Authentication failed',
+      };
+    }
+
+    return {
+      success: true,
+      data: data.data || { success: true, message: 'Token refreshed successfully' },
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: 'Network error. Please try again later.',
+    };
+  }
+};
