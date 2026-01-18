@@ -1,16 +1,29 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { loginAsAuditor } from '../../services/api/auth';
 import { setAuditorLoggedIn } from '../../utils/auth';
 
 export const useLogin = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [formData, setFormData] = useState({
     username: '',
     password: '',
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Check for session_expired error in query parameters
+  useEffect(() => {
+    const urlParams = new URLSearchParams(location.search);
+    const errorParam = urlParams.get('error');
+    if (errorParam === 'session_expired') {
+      setError('Your session has expired. Please login again.');
+      // Clear the error parameter from URL
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
+    }
+  }, [location.search]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
