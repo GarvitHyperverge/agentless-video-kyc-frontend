@@ -10,15 +10,18 @@ import SessionsListPage from './pages/AuditSessions/main';
 import SessionDetailPage from './pages/AuditSessionDetail/main';
 import RecordingIndicator from './components/RecordingIndicator';
 import { withProtectedRoute } from './components/withProtectedRoute';
+import { withProtectedAuditRoute } from './components/withProtectedAuditRoute';
 
-// Wrap all protected components with HOC
+// Wrap verification flow components with regular protection HOC
 const ProtectedPanPage = withProtectedRoute(PanPage);
 const ProtectedOtpPage = withProtectedRoute(OtpPage);
 const ProtectedSelfiePage = withProtectedRoute(SelfiePage);
 const ProtectedThankYouPage = withProtectedRoute(ThankYouPage);
-const ProtectedLandingPage = withProtectedRoute(LandingPage);
-const ProtectedSessionsListPage = withProtectedRoute(SessionsListPage);
-const ProtectedSessionDetailPage = withProtectedRoute(SessionDetailPage);
+
+// Wrap audit routes with audit-specific protection HOC
+// Uses GET /api/auth/audit/check to validate audit authentication
+const ProtectedSessionsListPage = withProtectedAuditRoute(SessionsListPage);
+const ProtectedSessionDetailPage = withProtectedAuditRoute(SessionDetailPage);
 
 function App() {
   return (
@@ -39,7 +42,7 @@ function App() {
         <Route path="/verify/selfie" element={<ProtectedSelfiePage />} />
         <Route path="/verify/complete" element={<ProtectedThankYouPage />} />
         {/* Dynamic route for temp_token (e.g., /verify/abc123xyz) - must come after specific routes */}
-        <Route path="/verify/:temp_token" element={<ProtectedLandingPage />} />
+        <Route path="/verify/:temp_token" element={<LandingPage />} />
         
         {/* Admin Audit Flow - Protected routes using HOC */}
         <Route path="/audit/sessions" element={<ProtectedSessionsListPage />} />

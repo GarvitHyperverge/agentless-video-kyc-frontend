@@ -85,12 +85,8 @@ export interface LogoutResponse {
 }
 
 export const logoutAuditSession = async (): Promise<LogoutResponse> => {
-  const response = await fetch(`${AUDIT_BASE_URL}/logout`, {
+  const response = await authenticatedFetch(`${AUDIT_BASE_URL}/logout`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    credentials: 'include', // Required to send/receive cookies
   });
 
   const data = await response.json();
