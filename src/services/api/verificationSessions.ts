@@ -44,7 +44,7 @@ export const activateVerificationSession = async (
     headers: {
       'Content-Type': 'application/json',
     },
-    credentials: 'include', // IMPORTANT: This enables cookies
+    credentials: 'include', 
     body: JSON.stringify({
       temp_token: payload.temp_token,
     }),

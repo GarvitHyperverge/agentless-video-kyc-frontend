@@ -79,7 +79,7 @@ export const refreshAccessToken = async (): Promise<RefreshTokenResponse> => {
       headers: {
         'Content-Type': 'application/json',
       },
-      credentials: 'include', // Required to send refresh token cookie
+      credentials: 'include', 
     });
 
     const data = await response.json();

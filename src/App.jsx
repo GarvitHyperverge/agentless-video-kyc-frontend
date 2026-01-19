@@ -19,7 +19,6 @@ const ProtectedSelfiePage = withProtectedRoute(SelfiePage);
 const ProtectedThankYouPage = withProtectedRoute(ThankYouPage);
 
 // Wrap audit routes with audit-specific protection HOC
-// Uses GET /api/auth/audit/check to validate audit authentication
 const ProtectedSessionsListPage = withProtectedAuditRoute(SessionsListPage);
 const ProtectedSessionDetailPage = withProtectedAuditRoute(SessionDetailPage);
 
@@ -36,12 +35,10 @@ function App() {
         <Route path="/not-authorized" element={<NotAuthorizedPage />} />
         
         {/* User Verification Flow - Protected routes using HOC */}
-        {/* Specific routes first (pan, otp, selfie, complete) */}
         <Route path="/verify/pan" element={<ProtectedPanPage />} />
         <Route path="/verify/otp" element={<ProtectedOtpPage />} />
         <Route path="/verify/selfie" element={<ProtectedSelfiePage />} />
         <Route path="/verify/complete" element={<ProtectedThankYouPage />} />
-        {/* Dynamic route for temp_token (e.g., /verify/abc123xyz) - must come after specific routes */}
         <Route path="/verify/:temp_token" element={<LandingPage />} />
         
         {/* Admin Audit Flow - Protected routes using HOC */}
