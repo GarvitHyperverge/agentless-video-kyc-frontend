@@ -2,7 +2,7 @@ import React from 'react';
 import { useOtpPage } from './hook';
 import { RotateCcw, AlertCircle, Loader2, X } from 'lucide-react';
 
-const OtpPage: React.FC = () => {
+const TestingOtpPage: React.FC = () => {
   const {
     otp,
     recordingStatus,
@@ -143,4 +143,4 @@ const OtpPage: React.FC = () => {
   );
 };
 
-export default OtpPage;
+export default TestingOtpPage;

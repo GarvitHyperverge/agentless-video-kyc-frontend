@@ -4,7 +4,7 @@ import { usePanPage } from './hook';
 import PanFront from './front';
 import PanBack from './back';
 
-const TestingPanPage: React.FC = () => {
+const PanPage: React.FC = () => {
   // 1. Navigation State
   const [currentStep, setCurrentStep] = useState<'front' | 'back'>('front');
 
@@ -136,4 +136,4 @@ const TestingPanPage: React.FC = () => {
   );
 };
 
-export default TestingPanPage;
+export default PanPage;

@@ -14,6 +14,7 @@ import { withProtectedAuditRoute } from './components/withProtectedAuditRoute';
 import TestingLandingPage from './TestingPage/LandingPage/main';
 import TestingPanPage from './TestingPage/PanPage/main';
 import TestingSessionRecordingPage from './TestingPage/SessionRecording/main';
+import TestingOtpPage from './TestingPage/OtpPage/main';
 
 // Wrap verification flow components with regular protection HOC
 const ProtectedSessionRecordingPage = withProtectedRoute(SessionRecordingPage);
@@ -37,13 +38,13 @@ function App() {
         <Route path="/audit/login" element={<LoginPage />} />
         <Route path="/not-authorized" element={<NotAuthorizedPage />} />
         
-        {/* User Verification Flow - Protected routes using HOC */}
+        {/* User Verification Flow */}
+        <Route path="/verify/:temp_token" element={<LandingPage />} />
         <Route path="/verify/session-recording" element={<ProtectedSessionRecordingPage />} />
         <Route path="/verify/pan" element={<ProtectedPanPage />} />
         <Route path="/verify/otp" element={<ProtectedOtpPage />} />
         <Route path="/verify/selfie" element={<ProtectedSelfiePage />} />
         <Route path="/verify/complete" element={<ProtectedThankYouPage />} />
-        <Route path="/verify/:temp_token" element={<LandingPage />} />
         
         {/* Admin Audit Flow - Protected routes using HOC */}
         <Route path="/audit/sessions" element={<ProtectedSessionsListPage />} />
@@ -51,8 +52,9 @@ function App() {
 
         {/* Testing */}
         <Route path="/testing/:temp_token" element={<TestingLandingPage />} />
+        <Route path='/testing/session-recording' element={<TestingSessionRecordingPage />} />
         <Route path='/testing/pan' element={<TestingPanPage />} />
-        <Route path='/testing/session-recording' element={<TestingSessionRecordingPage />} />      
+        <Route path='/testing/otp' element={<TestingOtpPage />} />      
         
       </Routes>
     </BrowserRouter>

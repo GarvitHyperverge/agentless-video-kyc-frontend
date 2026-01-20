@@ -1,11 +1,12 @@
 import React, { useRef, useEffect } from 'react';
 import { CreditCard, Loader2 } from 'lucide-react';
 import { useSessionRecording } from '../../services/sessionRecording/context';
+import { useNavigate } from 'react-router-dom';
 
 const SessionRecordingPage: React.FC = () => {
   const { isSessionRecording, recordingStream, startRecording } = useSessionRecording();
   const videoRef = useRef<HTMLVideoElement>(null);
-
+  const navigate = useNavigate();
   useEffect(() => {
     if (!isSessionRecording) {
       startRecording();
@@ -82,6 +83,9 @@ const SessionRecordingPage: React.FC = () => {
       <footer className="space-y-4">
         <button 
           className="w-full bg-[#5851eb] text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-100 active:scale-[0.98] transition-all"
+          onClick={()=>{
+            navigate('/verify/pan');
+          }}
         >
           Start video verification
         </button>
