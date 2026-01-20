@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Camera, Upload, X} from 'lucide-react';
+import { Camera, Upload, X, ChevronLeft } from 'lucide-react'; // Added ChevronLeft for back button
 import { usePanPage } from './hook';
 import PanFront from './front';
 import PanBack from './back';
+import RecordingIndicator from '../../components/RecordingIndicator';
 
 const PanPage: React.FC = () => {
   // 1. Navigation State
@@ -15,8 +16,6 @@ const PanPage: React.FC = () => {
     isCameraOpen,
     isCameraReady,
     isProcessing,
-    cameraError,
-    uploadError,
     videoRef,
     fileInputRef,
     openUploadOptions,
@@ -33,7 +32,25 @@ const PanPage: React.FC = () => {
   const goToFront = () => setCurrentStep('front');
 
   return (
-    <div className="relative min-h-screen bg-white overflow-hidden">
+    <div className="relative min-h-screen bg-white overflow-x-hidden">
+      {/* 1. TOP UI LAYER 
+          This container holds the back button and the recording indicator 
+          exactly as seen in image_9eb043.png
+      */}
+      <div className="absolute top-6 left-6 right-6 z-40 flex justify-between items-start pointer-events-none">
+        <button 
+          onClick={() => currentStep === 'back' ? goToFront() : window.history.back()}
+          className="p-3 bg-slate-50 rounded-full text-slate-400 pointer-events-auto active:scale-95 transition-transform"
+        >
+          <ChevronLeft className="w-6 h-6" />
+        </button>
+
+        {/* The RecordingIndicator component handles its own internal fixed/absolute positioning */}
+        <div className="pointer-events-auto">
+          <RecordingIndicator />
+        </div>
+      </div>
+
       {/* Hidden file input for gallery uploads */}
       <input
         type="file"
@@ -43,24 +60,26 @@ const PanPage: React.FC = () => {
         onChange={handlePanImageFileUpload}
       />
 
-      {/* 4. Step Rendering */}
-      {currentStep === 'front' ? (
-        <PanFront
-          panImage={panImages.front}
-          onNext={goToBack}
-          openUploadOptions={() => openUploadOptions('front')}
-          removeImage={() => removeImage('front')}
-        />
-      ) : (
-        <PanBack
-          panImage={panImages.back}
-          onBack={goToFront}
-          onSubmit={handleContinue}
-          openUploadOptions={() => openUploadOptions('back')}
-          removeImage={() => removeImage('back')}
-          isProcessing={isProcessing}
-        />
-      )}
+      {/* 4. Step Rendering - Adjusted padding to prevent overlap with floating UI */}
+      <div className="pt-24"> 
+        {currentStep === 'front' ? (
+          <PanFront
+            panImage={panImages.front}
+            onNext={goToBack}
+            openUploadOptions={() => openUploadOptions('front')}
+            removeImage={() => removeImage('front')}
+          />
+        ) : (
+          <PanBack
+            panImage={panImages.back}
+            onBack={goToFront}
+            onSubmit={handleContinue}
+            openUploadOptions={() => openUploadOptions('back')}
+            removeImage={() => removeImage('back')}
+            isProcessing={isProcessing}
+          />
+        )}
+      </div>
 
       {/* 5. Choice Modal (Camera vs Gallery) */}
       {activeSide && !isCameraOpen && (
@@ -68,7 +87,7 @@ const PanPage: React.FC = () => {
           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm animate-in fade-in" onClick={closeUploadOptions} />
           <div className="relative bg-white w-full max-w-md rounded-t-[32px] p-8 shadow-2xl animate-in slide-in-from-bottom duration-300">
             <div className="w-12 h-1.5 bg-slate-100 rounded-full mx-auto mb-8" />
-            <h3 className="text-xl font-bold text-slate-800 mb-2 text-center">Capture {activeSide} side</h3>
+            <h3 className="text-xl font-bold text-slate-800 mb-2 text-center font-sans">Capture {activeSide} side</h3>
             <p className="text-slate-500 text-sm text-center mb-8">Align your card within the frame</p>
             <div className="grid grid-cols-2 gap-4">
               <button 
@@ -95,22 +114,15 @@ const PanPage: React.FC = () => {
       {isCameraOpen && (
         <div className="fixed inset-0 z-[100] bg-black flex flex-col">
           <div className="relative flex-1">
-            <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+            <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" />
             
             {/* Alignment Guide Overlay */}
             <div className="absolute inset-0 flex items-center justify-center p-8 pointer-events-none">
               <div className="w-full aspect-[1.58] border-2 border-white/20 rounded-3xl relative">
-                <div className="absolute -top-1 -left-1 w-8 h-8 border-t-4 border-l-4 border-indigo-500 rounded-tl-xl" />
-                <div className="absolute -bottom-1 -right-1 w-8 h-8 border-b-4 border-r-4 border-indigo-500 rounded-br-xl" />
+                <div className="absolute -top-1 -left-1 w-10 h-10 border-t-4 border-l-4 border-[#5851eb] rounded-tl-2xl" />
+                <div className="absolute -bottom-1 -right-1 w-10 h-10 border-b-4 border-r-4 border-[#5851eb] rounded-br-2xl" />
               </div>
             </div>
-
-            {/* Error Message if camera fails */}
-            {(cameraError || uploadError) && (
-              <div className="absolute top-20 inset-x-6 p-3 bg-red-600/90 text-white text-xs rounded-xl text-center">
-                {cameraError || uploadError}
-              </div>
-            )}
 
             <button 
                 onClick={closeUploadOptions} 
@@ -120,12 +132,11 @@ const PanPage: React.FC = () => {
             </button>
           </div>
 
-          {/* Capture Trigger */}
-          <div className="h-40 bg-black flex items-center justify-center">
+          <div className="h-44 bg-black flex items-center justify-center">
             <button 
               onClick={capturePhoto} 
               disabled={!isCameraReady}
-              className="w-20 h-20 rounded-full border-4 border-white/30 flex items-center justify-center active:scale-90 transition-transform"
+              className="w-20 h-20 rounded-full border-4 border-white/30 flex items-center justify-center active:scale-90 transition-all disabled:opacity-50"
             >
               <div className="w-14 h-14 bg-white rounded-full shadow-lg" />
             </button>

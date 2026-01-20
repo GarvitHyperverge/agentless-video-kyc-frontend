@@ -71,11 +71,6 @@ const PermissionsModal: React.FC<PermissionsModalProps> = ({ isOpen, onClose, on
           </div>
         </div>
 
-        {/* Security Footer Note */}
-        <p className="text-center text-[11px] text-slate-400 mb-6 px-4">
-          Your data is 256-bit encrypted and used strictly for identity verification purposes only.
-        </p>
-
         {/* Action Buttons */}
         <div className="flex flex-col gap-3">
           <button

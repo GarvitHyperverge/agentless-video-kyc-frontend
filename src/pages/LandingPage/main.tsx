@@ -22,7 +22,7 @@ const LandingPage: React.FC = () => {
         {/* Header Section */}
         <header className="mb-10">
           <h1 className="text-[26px] font-bold leading-tight text-slate-800 tracking-tight">
-            Let's start your video verification process
+            Let's start with your video verification process
           </h1>
           
           {/* Activation Error - Positioned below title */}
@@ -86,7 +86,6 @@ const LandingPage: React.FC = () => {
           ) : (
             <span className="flex items-center gap-2">
               Start verification
-              <ChevronRight className="w-5 h-5 opacity-50" />
             </span>
           )}
         </button>

@@ -1,6 +1,6 @@
 import React from 'react';
 import {CheckCircle2, ChevronRight, X } from 'lucide-react';
-
+import PanFrontExample from '../../assets/PanFrontExample.jpeg';
 interface FrontProps {
   panImage: { url: string | null; file: File | null };
   onNext: () => void;
@@ -23,7 +23,7 @@ const PanFront: React.FC<FrontProps> = ({ panImage, onNext, openUploadOptions, r
             <button onClick={() => removeImage('front')} className="absolute top-4 right-4 bg-red-500 text-white p-2 rounded-full"><X size={16}/></button>
           </div>
         ) : (
-          <img src="/path-to-pan-front-asset.png" alt="Template" className="max-w-[80%] opacity-80" />
+          <img src={PanFrontExample} alt="Template" className="max-w-[80%] opacity-80" />
         )}
       </div>
 
