@@ -43,7 +43,7 @@ export const useLanding = () => {
     setShowReadyModal(true);       
     setTimeout(() => {
       setShowReadyModal(false);
-      navigate('/verify/sdfdsf');
+      navigate('/testing/session-recording');
     }, 2500);
   };
 

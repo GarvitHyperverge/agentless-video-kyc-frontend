@@ -8,12 +8,15 @@ import LoginPage from './pages/Login/main';
 import NotAuthorizedPage from './pages/NotAuthorized/main';
 import SessionsListPage from './pages/AuditSessions/main';
 import SessionDetailPage from './pages/AuditSessionDetail/main';
-import RecordingIndicator from './components/RecordingIndicator';
+import SessionRecordingPage from './pages/SessionRecording/main';
 import { withProtectedRoute } from './components/withProtectedRoute';
 import { withProtectedAuditRoute } from './components/withProtectedAuditRoute';
 import TestingLandingPage from './TestingPage/LandingPage/main';
+import TestingPanPage from './TestingPage/PanPage/main';
+import TestingSessionRecordingPage from './TestingPage/SessionRecording/main';
 
 // Wrap verification flow components with regular protection HOC
+const ProtectedSessionRecordingPage = withProtectedRoute(SessionRecordingPage);
 const ProtectedPanPage = withProtectedRoute(PanPage);
 const ProtectedOtpPage = withProtectedRoute(OtpPage);
 const ProtectedSelfiePage = withProtectedRoute(SelfiePage);
@@ -26,7 +29,6 @@ const ProtectedSessionDetailPage = withProtectedAuditRoute(SessionDetailPage);
 function App() {
   return (
     <BrowserRouter>
-      <RecordingIndicator />
       <Routes>
         {/* Root redirect to audit login */}
         <Route path="/" element={<Navigate to="/audit/login" replace />} />
@@ -36,6 +38,7 @@ function App() {
         <Route path="/not-authorized" element={<NotAuthorizedPage />} />
         
         {/* User Verification Flow - Protected routes using HOC */}
+        <Route path="/verify/session-recording" element={<ProtectedSessionRecordingPage />} />
         <Route path="/verify/pan" element={<ProtectedPanPage />} />
         <Route path="/verify/otp" element={<ProtectedOtpPage />} />
         <Route path="/verify/selfie" element={<ProtectedSelfiePage />} />
@@ -48,6 +51,9 @@ function App() {
 
         {/* Testing */}
         <Route path="/testing/:temp_token" element={<TestingLandingPage />} />
+        <Route path='/testing/pan' element={<TestingPanPage />} />
+        <Route path='/testing/session-recording' element={<TestingSessionRecordingPage />} />      
+        
       </Routes>
     </BrowserRouter>
   );

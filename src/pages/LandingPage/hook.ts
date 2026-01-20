@@ -10,7 +10,6 @@ import {
 } from './utils';
 import { saveSessionMetadata } from '../../services/api/sessionMetadata';
 import { activateVerificationSession } from '../../services/api/verificationSessions';
-import { useSessionRecording } from '../../services/sessionRecording/context';
 import { storeLocation } from '../../utils/location';
 
 export const useLanding = () => {
@@ -21,7 +20,6 @@ export const useLanding = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [activationError, setActivationError] = useState<string | null>(null);
   const [tempToken, setTempToken] = useState<string | null>(null);
-  const { startRecording } = useSessionRecording();
 
   // Extract temp_token from URL path parameter (e.g., /verify/abc123xyz)
   useEffect(() => {
@@ -111,20 +109,11 @@ export const useLanding = () => {
       const response = await saveSessionMetadata(metadata);
 
       if (response.success) {
-        // Start the shared stream after permissions are granted
-        try {
-          await startRecording();
-          console.log('Shared stream started from LandingPage');
-        } catch (err) {
-          console.warn('Could not start shared stream:', err);
-          // Continue anyway, stream will be started on PanPage
-        }
-        
         setShowPermissionsModal(false);
         setShowReadyModal(true);       
         setTimeout(() => {
           setShowReadyModal(false);
-          navigate('/verify/pan');
+          navigate('/verify/session-recording');
         }, 2500);
       } else {
         console.log(response);
