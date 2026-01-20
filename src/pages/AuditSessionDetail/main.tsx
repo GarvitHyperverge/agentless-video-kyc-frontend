@@ -32,10 +32,10 @@ const SessionDetailPage: React.FC = () => {
   const getValidationColor = (value: string) => {
     const normalized = value.toLowerCase();
     if (normalized === 'yes' || normalized === 'pass' || normalized === 'true') {
-      return 'text-green-400';
+      return 'text-emerald-600'; // Modern green
     }
     if (normalized === 'no' || normalized === 'fail' || normalized === 'false') {
-      return 'text-red-400';
+      return 'text-red-600'; // Modern red
     }
     return 'text-slate-400';
   };
@@ -49,40 +49,22 @@ const SessionDetailPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
-        <svg
-          className="w-12 h-12 text-white animate-spin"
-          fill="none"
-          viewBox="0 0 24 24"
-        >
-          <circle
-            className="opacity-25"
-            cx="12"
-            cy="12"
-            r="10"
-            stroke="currentColor"
-            strokeWidth="4"
-          />
-          <path
-            className="opacity-75"
-            fill="currentColor"
-            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-          />
-        </svg>
+      <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-slate-200 border-t-[#5851eb] rounded-full animate-spin" />
       </div>
     );
   }
 
   if (error || !sessionData) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="mb-4 p-4 bg-red-500/20 border border-red-500/30 rounded-xl text-red-300">
+      <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">
+        <div className="text-center bg-white p-8 rounded-3xl shadow-sm border border-slate-200">
+          <div className="mb-4 text-red-600 font-bold">
             {error || 'Session not found'}
           </div>
           <button
             onClick={() => navigate('/audit/sessions')}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
+            className="px-6 py-2 bg-[#5851eb] text-white rounded-xl font-bold"
           >
             Back to Sessions
           </button>
@@ -104,103 +86,56 @@ const SessionDetailPage: React.FC = () => {
   } = sessionData;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans">
       <div className="container mx-auto px-4 py-8">
         {/* Breadcrumb */}
-        <div className="mb-6 flex items-center gap-2 text-sm text-slate-400">
+        <div className="mb-6 flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-slate-400">
           <button
             onClick={() => navigate('/audit/sessions')}
-            className="hover:text-white transition-colors"
+            className="hover:text-[#5851eb] transition-colors"
           >
             Sessions
           </button>
           <span>/</span>
-          <span className="text-white">{session.session_uid}</span>
+          <span className="text-slate-600 font-mono">{session.session_uid}</span>
         </div>
 
         {/* Header */}
-        <div className="mb-8 flex items-center justify-between">
+        <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
-            <h1 className="text-4xl font-bold text-white mb-2">
+            <h1 className="text-3xl font-black text-[#1a1a4a] mb-1">
               Session Details
             </h1>
-            <p className="text-slate-400">Review and manage verification session</p>
+            <p className="text-slate-500 text-sm">Verify and manage the audit process</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             {/* Audit Status Buttons */}
-            <div className="flex items-center gap-2 mr-4">
+            <div className="flex items-center gap-2 mr-2">
               <button
                 onClick={() => handleAuditStatusUpdate('pass')}
                 disabled={isUpdating}
-                className={`px-4 py-2 rounded-lg font-semibold transition-all flex items-center gap-2 ${
-                  isUpdating
-                    ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
-                    : 'bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-500/30 hover:shadow-green-500/50'
-                }`}
+                className="px-6 py-2.5 bg-[#5851eb] text-white rounded-xl font-black text-[11px] uppercase tracking-widest shadow-lg shadow-indigo-100 disabled:opacity-50 transition-all hover:scale-105"
               >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
                 PASS
               </button>
               <button
                 onClick={() => handleAuditStatusUpdate('fail')}
                 disabled={isUpdating}
-                className={`px-4 py-2 rounded-lg font-semibold transition-all flex items-center gap-2 ${
-                  isUpdating
-                    ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
-                    : 'bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-500/30 hover:shadow-red-500/50'
-                }`}
+                className="px-6 py-2.5 bg-white border-2 border-red-100 text-red-600 rounded-xl font-black text-[11px] uppercase tracking-widest disabled:opacity-50 transition-all hover:bg-red-50"
               >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
                 FAIL
               </button>
             </div>
-            <div className="flex items-center gap-2 text-slate-300 mr-2">
-              <svg
-                className="w-5 h-5 text-slate-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                />
-              </svg>
-              <span className="text-sm font-medium">
+            <div className="flex items-center gap-2 text-slate-500 bg-white px-3 py-2 rounded-xl border border-slate-200">
+              <span className="text-[10px] font-black uppercase tracking-wider">
                 {getAuditorUsername() || 'Auditor'}
               </span>
             </div>
             <button
               onClick={() => navigate('/audit/sessions')}
-              className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
+              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition-colors font-bold text-sm"
             >
-              ← Back to List
+              ← Back
             </button>
             <button
               onClick={async () => {
@@ -213,242 +148,88 @@ const SessionDetailPage: React.FC = () => {
                   navigate('/audit/login', { replace: true });
                 }
               }}
-              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors flex items-center gap-2"
+              className="p-2 text-red-500 hover:bg-red-50 rounded-xl transition-colors"
+              title="Logout"
             >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                />
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
               </svg>
-              Logout
             </button>
           </div>
         </div>
 
-        {/* Success/Error Messages */}
-        {successMessage && (
-          <div className="mb-6 p-4 bg-green-500/20 border border-green-500/30 rounded-xl text-green-300 text-sm flex items-center gap-3">
-            <svg
-              className="w-5 h-5 flex-shrink-0"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M5 13l4 4L19 7"
-              />
-            </svg>
-            {successMessage}
+        {/* Status Messages */}
+        {(successMessage || error) && (
+          <div className={`mb-6 p-4 rounded-2xl border text-sm font-bold flex items-center gap-3 ${
+            successMessage ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-red-50 border-red-100 text-red-700'
+          }`}>
+            {successMessage || error}
           </div>
         )}
 
-        {error && (
-          <div className="mb-6 p-4 bg-red-500/20 border border-red-500/30 rounded-xl text-red-300 text-sm flex items-center gap-3">
-            <svg
-              className="w-5 h-5 flex-shrink-0"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-            {error}
-          </div>
-        )}
-
-        <div className="space-y-6">
+        <div className="space-y-8">
           {/* Section 1: Session Overview */}
-          <div className="bg-slate-800/50 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-2xl">
-            <h2 className="text-2xl font-bold text-white mb-6">Session Overview</h2>
-            <div className="grid md:grid-cols-2 gap-6">
-              <div>
-                <label className="text-slate-400 text-sm">Session UID</label>
-                <div className="text-white font-mono text-sm mt-1">
-                  {session.session_uid}
-                </div>
+          <div className="bg-white border border-slate-200 rounded-[32px] p-8 shadow-sm">
+            <h2 className="text-xl font-black text-[#1a1a4a] mb-8 uppercase tracking-tight">Session Overview</h2>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+              <InfoItem label="Session UID" value={session.session_uid} mono />
+              <InfoItem label="Transaction ID" value={formatFieldValue(session.external_txn_id)} />
+              {session.client_name && <InfoItem label="Client Name" value={formatFieldValue(session.client_name)} />}
+              <div className="flex flex-col gap-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Status</label>
+                <StatusBadge status={session.status} />
               </div>
-              <div>
-                <label className="text-slate-400 text-sm">External Transaction ID</label>
-                <div className="text-white text-sm mt-1">
-                  {formatFieldValue(session.external_txn_id)}
-                </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Audit Status</label>
+                <StatusBadge status={session.audit_status || 'pending'} />
               </div>
-              {session.client_name && (
-                <div>
-                  <label className="text-slate-400 text-sm">Client Name</label>
-                  <div className="text-white text-sm mt-1">
-                    {formatFieldValue(session.client_name)}
-                  </div>
-                </div>
-              )}
-              <div>
-                <label className="text-slate-400 text-sm">Status</label>
-                <div className="mt-1">
-                  <StatusBadge status={session.status} />
-                </div>
-              </div>
-              <div>
-                <label className="text-slate-400 text-sm">Audit Status</label>
-                <div className="mt-1">
-                  <StatusBadge status={session.audit_status || 'pending'} />
-                </div>
-              </div>
-              <div>
-                <label className="text-slate-400 text-sm">Created At</label>
-                <div className="text-white text-sm mt-1">
-                  {formatDate(session.created_at)}
-                </div>
-              </div>
-              <div>
-                <label className="text-slate-400 text-sm">Updated At</label>
-                <div className="text-white text-sm mt-1">
-                  {formatDate(session.updated_at)}
-                </div>
-              </div>
+              <InfoItem label="Created At" value={formatDate(session.created_at)} />
             </div>
           </div>
 
           {/* Section 2: PAN Information */}
-          <div className="bg-slate-800/50 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-2xl">
-            <h2 className="text-2xl font-bold text-white mb-6">PAN Information</h2>
+          <div className="bg-white border border-slate-200 rounded-[32px] p-8 shadow-sm">
+            <h2 className="text-xl font-black text-[#1a1a4a] mb-8 uppercase tracking-tight">PAN Verification</h2>
 
-            {/* Business Partner Data */}
-            <div className="mb-8">
-              <h3 className="text-lg font-semibold text-white mb-4">
-                Business Partner Data
-              </h3>
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-slate-400 text-sm">PAN Number</label>
-                  <div className="text-white text-sm mt-1">
-                    {formatFieldValue(businessPartnerPanData.pan_number)}
-                  </div>
-                </div>
-                <div>
-                  <label className="text-slate-400 text-sm">Full Name</label>
-                  <div className="text-white text-sm mt-1">
-                    {formatFieldValue(businessPartnerPanData.full_name)}
-                  </div>
-                </div>
-                <div>
-                  <label className="text-slate-400 text-sm">Father Name</label>
-                  <div className="text-white text-sm mt-1">
-                    {formatFieldValue(businessPartnerPanData.father_name)}
-                  </div>
-                </div>
-                <div>
-                  <label className="text-slate-400 text-sm">Date of Birth</label>
-                  <div className="text-white text-sm mt-1">
-                    {formatFieldValue(businessPartnerPanData.date_of_birth)}
-                  </div>
-                </div>
-                <div>
-                  <label className="text-slate-400 text-sm">Source Party</label>
-                  <div className="text-white text-sm mt-1">
-                    {formatFieldValue(businessPartnerPanData.source_party)}
-                  </div>
+            <div className="grid lg:grid-cols-2 gap-12">
+              {/* Business Partner Data */}
+              <div>
+                <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 mb-6 pb-2 border-b border-slate-50">Business Target</h3>
+                <div className="grid sm:grid-cols-2 gap-6">
+                  <InfoItem label="PAN Number" value={formatFieldValue(businessPartnerPanData.pan_number)} />
+                  <InfoItem label="Full Name" value={formatFieldValue(businessPartnerPanData.full_name)} />
+                  <InfoItem label="Father Name" value={formatFieldValue(businessPartnerPanData.father_name)} />
+                  <InfoItem label="Date of Birth" value={formatFieldValue(businessPartnerPanData.date_of_birth)} />
                 </div>
               </div>
-            </div>
 
-            {/* Extracted PAN Data */}
-            <div className="mb-8">
-              <h3 className="text-lg font-semibold text-white mb-4">
-                Extracted PAN Data
-              </h3>
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-slate-400 text-sm">ID Number</label>
-                  <div className="text-white text-sm mt-1">
-                    {formatFieldValue(cardIdValidation.id_number)}
-                  </div>
-                </div>
-                <div>
-                  <label className="text-slate-400 text-sm">Full Name</label>
-                  <div className="text-white text-sm mt-1">
-                    {formatFieldValue(cardIdValidation.full_name)}
-                  </div>
-                </div>
-                <div>
-                  <label className="text-slate-400 text-sm">Date of Birth</label>
-                  <div className="text-white text-sm mt-1">
-                    {formatFieldValue(cardIdValidation.date_of_birth)}
-                  </div>
-                </div>
-                <div>
-                  <label className="text-slate-400 text-sm">Father Name</label>
-                  <div className="text-white text-sm mt-1">
-                    {formatFieldValue(cardIdValidation.father_name)}
-                  </div>
+              {/* Extracted PAN Data */}
+              <div>
+                <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 mb-6 pb-2 border-b border-slate-50">Extracted Data</h3>
+                <div className="grid sm:grid-cols-2 gap-6">
+                  <InfoItem label="ID Number" value={formatFieldValue(cardIdValidation.id_number)} />
+                  <InfoItem label="Full Name" value={formatFieldValue(cardIdValidation.full_name)} />
+                  <InfoItem label="Date of Birth" value={formatFieldValue(cardIdValidation.date_of_birth)} />
+                  <InfoItem label="Father Name" value={formatFieldValue(cardIdValidation.father_name)} />
                 </div>
               </div>
             </div>
 
             {/* Field Match Results */}
             {fieldMatchResults && (
-              <div>
-                <h3 className="text-lg font-semibold text-white mb-4">
-                  Field Match Results
-                </h3>
-                <div className="bg-slate-900/50 rounded-lg p-4">
-                  <div className="mb-4 grid grid-cols-3 gap-4 text-xs text-slate-400 font-medium">
+              <div className="mt-12 pt-12 border-t border-slate-100">
+                <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[#5851eb] mb-6">Match Integrity Results</h3>
+                <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100">
+                  <div className="mb-6 grid grid-cols-3 gap-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
                     <div>Field</div>
-                    <div>Business Partner</div>
-                    <div>Extracted Data</div>
+                    <div>Target Value</div>
+                    <div>Extracted</div>
                   </div>
-                  <MatchIndicator
-                    label="Name"
-                    value1={businessPartnerPanData.full_name}
-                    value2={cardIdValidation.full_name}
-                    match={fieldMatchResults.results.name.match}
-                  />
-                  <MatchIndicator
-                    label="Date of Birth"
-                    value1={businessPartnerPanData.date_of_birth}
-                    value2={cardIdValidation.date_of_birth}
-                    match={fieldMatchResults.results.dateOfBirth.match}
-                  />
-                  <MatchIndicator
-                    label="PAN Number"
-                    value1={businessPartnerPanData.pan_number}
-                    value2={cardIdValidation.id_number}
-                    match={fieldMatchResults.results.idNumber.match}
-                  />
-                  <MatchIndicator
-                    label="Father Name"
-                    value1={businessPartnerPanData.father_name}
-                    value2={cardIdValidation.father_name}
-                    match={fieldMatchResults.results.fatherName.match}
-                  />
-                </div>
-                <div className="mt-4">
-                  <div
-                    className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg ${
-                      fieldMatchResults.allMatched
-                        ? 'bg-green-500/20 text-green-300 border border-green-500/30'
-                        : 'bg-red-500/20 text-red-300 border border-red-500/30'
-                    }`}
-                  >
-                    <span className="font-medium">Overall Verification Status:</span>
-                    <span>
-                      {fieldMatchResults.allMatched ? 'PASSED' : 'FAILED'}
-                    </span>
+                  <div className="space-y-4">
+                    <MatchIndicator label="Name" value1={businessPartnerPanData.full_name} value2={cardIdValidation.full_name} match={fieldMatchResults.results.name.match} />
+                    <MatchIndicator label="DOB" value1={businessPartnerPanData.date_of_birth} value2={cardIdValidation.date_of_birth} match={fieldMatchResults.results.dateOfBirth.match} />
+                    <MatchIndicator label="PAN ID" value1={businessPartnerPanData.pan_number} value2={cardIdValidation.id_number} match={fieldMatchResults.results.idNumber.match} />
+                    <MatchIndicator label="Father" value1={businessPartnerPanData.father_name} value2={cardIdValidation.father_name} match={fieldMatchResults.results.fatherName.match} />
                   </div>
                 </div>
               </div>
@@ -456,262 +237,66 @@ const SessionDetailPage: React.FC = () => {
           </div>
 
           {/* Section 3: Images */}
-          <div className="bg-slate-800/50 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-2xl">
-            <h2 className="text-2xl font-bold text-white mb-6">Images</h2>
-            <div className="grid md:grid-cols-3 gap-6">
-              <div>
-                <label className="text-slate-400 text-sm mb-2 block">
-                  PAN Card Front
-                </label>
-                <ImageLightbox
-                  src={mediaPaths.images.panFront}
-                  alt="PAN Front"
-                  className="w-full h-48 object-cover"
-                />
-              </div>
-              <div>
-                <label className="text-slate-400 text-sm mb-2 block">
-                  PAN Card Back
-                </label>
-                <ImageLightbox
-                  src={mediaPaths.images.panBack}
-                  alt="PAN Back"
-                  className="w-full h-48 object-cover"
-                />
-              </div>
-              <div>
-                <label className="text-slate-400 text-sm mb-2 block">Selfie</label>
-                <ImageLightbox
-                  src={mediaPaths.images.selfie}
-                  alt="Selfie"
-                  className="w-full h-48 object-cover"
-                />
-              </div>
+          <div className="bg-white border border-slate-200 rounded-[32px] p-8 shadow-sm">
+            <h2 className="text-xl font-black text-[#1a1a4a] mb-8 uppercase tracking-tight">Media Assets</h2>
+            <div className="grid md:grid-cols-3 gap-8">
+              <MediaBox label="PAN Front" src={mediaPaths.images.panFront} />
+              <MediaBox label="PAN Back" src={mediaPaths.images.panBack} />
+              <MediaBox label="Selfie" src={mediaPaths.images.selfie} />
             </div>
           </div>
 
           {/* Section 4: Validation Results */}
-          <div className="bg-slate-800/50 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-2xl">
-            <h2 className="text-2xl font-bold text-white mb-6">
-              Validation Results
-            </h2>
-            <div className="grid md:grid-cols-2 gap-6">
-              {/* Face Match */}
-              <div className="bg-slate-900/50 rounded-lg p-4">
-                <h3 className="text-lg font-semibold text-white mb-4">
-                  Face Match
-                </h3>
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-slate-400 text-sm">Match Value</label>
-                    <div
-                      className={`text-sm font-medium mt-1 ${getValidationColor(
-                        faceMatchResult.match_value || ''
-                      )}`}
-                    >
-                      {formatFieldValue(faceMatchResult.match_value)}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-slate-400 text-sm">Confidence Score</label>
-                    <div className="text-white text-sm mt-1">
-                      {formatFieldValue(faceMatchResult.match_confidence)}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-slate-400 text-sm">Action</label>
-                    <div
-                      className={`text-sm font-medium mt-1 ${getValidationColor(
-                        faceMatchResult.action || ''
-                      )}`}
-                    >
-                      {formatFieldValue(faceMatchResult.action)}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Liveness Check */}
-              <div className="bg-slate-900/50 rounded-lg p-4">
-                <h3 className="text-lg font-semibold text-white mb-4">
-                  Liveness Check
-                </h3>
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-slate-400 text-sm">Live Face Value</label>
-                    <div
-                      className={`text-sm font-medium mt-1 ${getValidationColor(
-                        selfieValidation.live_face_value || ''
-                      )}`}
-                    >
-                      {formatFieldValue(selfieValidation.live_face_value)}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-slate-400 text-sm">
-                      Live Face Confidence
-                    </label>
-                    <div className="text-white text-sm mt-1">
-                      {formatFieldValue(selfieValidation.live_face_confidence)}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-slate-400 text-sm">Action</label>
-                    <div
-                      className={`text-sm font-medium mt-1 ${getValidationColor(
-                        selfieValidation.action || ''
-                      )}`}
-                    >
-                      {formatFieldValue(selfieValidation.action)}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+          <div className="grid md:grid-cols-2 gap-8">
+            <ValidationCard 
+              title="Biometric Match" 
+              value={faceMatchResult.match_value} 
+              confidence={faceMatchResult.match_confidence} 
+              action={faceMatchResult.action} 
+              colorFn={getValidationColor}
+            />
+            <ValidationCard 
+              title="Liveness Detection" 
+              value={selfieValidation.live_face_value} 
+              confidence={selfieValidation.live_face_confidence} 
+              action={selfieValidation.action} 
+              colorFn={getValidationColor}
+            />
           </div>
 
-          {/* Section 5: Session Metadata */}
-          <div className="bg-slate-800/50 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-2xl">
-            <h2 className="text-2xl font-bold text-white mb-6">Session Metadata</h2>
-            <div className="grid md:grid-cols-2 gap-6">
-              <div>
-                <label className="text-slate-400 text-sm">Location</label>
-                <div className="text-white text-sm mt-1">
-                  {sessionMetadata.latitude !== null && sessionMetadata.latitude !== undefined &&
-                   sessionMetadata.longitude !== null && sessionMetadata.longitude !== undefined
-                    ? `${sessionMetadata.latitude}, ${sessionMetadata.longitude}`
-                    : 'No data'}
-                </div>
-                <div className="mt-2 text-xs text-slate-500">
-                  (Map integration can be added here)
-                </div>
-              </div>
-              <div>
-                <label className="text-slate-400 text-sm">Permissions</label>
-                <div className="flex gap-4 mt-2">
-                  <div className="flex items-center gap-2">
-                    {sessionMetadata.camera_permission ? (
-                      <svg
-                        className="w-5 h-5 text-green-400"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                    ) : (
-                      <svg
-                        className="w-5 h-5 text-red-400"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                    )}
-                    <span className="text-white text-sm">Camera</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {sessionMetadata.microphone_permission ? (
-                      <svg
-                        className="w-5 h-5 text-green-400"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                    ) : (
-                      <svg
-                        className="w-5 h-5 text-red-400"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                    )}
-                    <span className="text-white text-sm">Microphone</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {sessionMetadata.location_permission ? (
-                      <svg
-                        className="w-5 h-5 text-green-400"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                    ) : (
-                      <svg
-                        className="w-5 h-5 text-red-400"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                    )}
-                    <span className="text-white text-sm">Location</span>
-                  </div>
-                </div>
-              </div>
-              <div>
-                <label className="text-slate-400 text-sm">IP Address</label>
-                <div className="text-white text-sm mt-1">
-                  {formatFieldValue(sessionMetadata.ip_address)}
-                </div>
-              </div>
-              <div>
-                <label className="text-slate-400 text-sm">Device Type</label>
-                <div className="text-white text-sm mt-1">
-                  {formatFieldValue(sessionMetadata.device_type)}
+          {/* Section 5: Metadata */}
+          <div className="bg-[#1a1a4a] text-white rounded-[32px] p-8 shadow-xl">
+            <h2 className="text-xl font-black mb-8 opacity-90">System Metadata</h2>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-10">
+              <InfoItem light label="IP Address" value={formatFieldValue(sessionMetadata.ip_address)} />
+              <InfoItem light label="Device" value={formatFieldValue(sessionMetadata.device_type)} />
+              <div className="flex flex-col gap-3">
+                <label className="text-[10px] font-black uppercase tracking-widest opacity-50">Permissions</label>
+                <div className="flex gap-4">
+                  <PermToggle label="Cam" active={sessionMetadata.camera_permission} />
+                  <PermToggle label="Mic" active={sessionMetadata.microphone_permission} />
+                  <PermToggle label="Loc" active={sessionMetadata.location_permission} />
                 </div>
               </div>
             </div>
           </div>
 
           {/* Section 6: Videos */}
-          <div className="bg-slate-800/50 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-2xl">
-            <h2 className="text-2xl font-bold text-white mb-6">Videos</h2>
-            <div className="grid md:grid-cols-2 gap-6">
-              <div>
-                <VideoPlayer
-                  src={mediaPaths.videos.otpVideo}
-                  title="OTP Video"
-                />
-                {verificationInputs.find((input) => input.input_type === 'OTP') && (
-                  <div className="mt-4 p-4 bg-slate-900/50 rounded-lg border border-slate-700">
-                    <label className="text-slate-400 text-sm block mb-2">OTP Value</label>
-                    <div className="text-white font-mono text-lg font-semibold">
-                      {formatFieldValue(verificationInputs.find((input) => input.input_type === 'OTP')?.input_value)}
-                    </div>
+          <div className="bg-white border border-slate-200 rounded-[32px] p-8 shadow-sm">
+            <h2 className="text-xl font-black text-[#1a1a4a] mb-8 uppercase tracking-tight">Video Recording</h2>
+            <div className="grid md:grid-cols-2 gap-8">
+              <div className="space-y-4">
+                <VideoPlayer src={mediaPaths.videos.otpVideo} title="OTP Interaction" />
+                {verificationInputs.find(i => i.input_type === 'OTP') && (
+                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    <label className="text-[10px] font-black uppercase text-slate-400 block mb-1">Captured OTP</label>
+                    <span className="text-2xl font-black text-[#5851eb] tracking-widest">
+                      {formatFieldValue(verificationInputs.find(i => i.input_type === 'OTP')?.input_value)}
+                    </span>
                   </div>
                 )}
               </div>
-              <VideoPlayer
-                src={mediaPaths.videos.sessionRecording}
-                title="Session Recording"
-              />
+              <VideoPlayer src={mediaPaths.videos.sessionRecording} title="Audit Trace Video" />
             </div>
           </div>
         </div>
@@ -719,5 +304,53 @@ const SessionDetailPage: React.FC = () => {
     </div>
   );
 };
+
+/* Internal Helper Components for Clean Theme */
+
+const InfoItem = ({ label, value, mono, light }: any) => (
+  <div className="flex flex-col gap-1">
+    <label className={`text-[10px] font-black uppercase tracking-widest ${light ? 'opacity-50 text-white' : 'text-slate-400'}`}>
+      {label}
+    </label>
+    <div className={`text-sm font-bold ${light ? 'text-white' : 'text-[#1a1a4a]'} ${mono ? 'font-mono break-all' : ''}`}>
+      {value}
+    </div>
+  </div>
+);
+
+const MediaBox = ({ label, src }: any) => (
+  <div className="space-y-3">
+    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</label>
+    <div className="rounded-2xl overflow-hidden border border-slate-100 shadow-sm bg-slate-50">
+      <ImageLightbox src={src} alt={label} className="w-full h-48 object-cover" />
+    </div>
+  </div>
+);
+
+const ValidationCard = ({ title, value, confidence, action, colorFn }: any) => (
+  <div className="bg-white border border-slate-200 rounded-[32px] p-8 shadow-sm">
+    <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-6">{title}</h3>
+    <div className="space-y-6">
+      <div className="flex justify-between items-end border-b border-slate-50 pb-4">
+        <span className="text-3xl font-black text-[#1a1a4a]">{confidence || '0'}%</span>
+        <span className={`text-xs font-black uppercase tracking-widest ${colorFn(value || '')}`}>
+          {value || 'N/A'}
+        </span>
+      </div>
+      <div className="flex justify-between text-xs font-bold">
+        <span className="text-slate-400 uppercase tracking-tighter">System Decision</span>
+        <span className="text-[#1a1a4a]">{action}</span>
+      </div>
+    </div>
+  </div>
+);
+
+const PermToggle = ({ label, active }: any) => (
+  <div className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase border ${
+    active ? 'bg-emerald-50 border-emerald-200 text-emerald-600' : 'bg-red-50 border-red-200 text-red-600'
+  }`}>
+    {label}
+  </div>
+);
 
 export default SessionDetailPage;
