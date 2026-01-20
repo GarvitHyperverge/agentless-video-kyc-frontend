@@ -5,7 +5,7 @@ import { CheckCircle2, Loader2, AlertCircle, ShieldCheck } from 'lucide-react';
 
 let hasStartedVerification = false;
 
-const ThankYouPage: React.FC = () => {
+const TestingThankYouPage: React.FC = () => {
   const { uploadRecording } = useSessionRecording();
   const [isUploadComplete, setIsUploadComplete] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -128,4 +128,4 @@ const ThankYouPage: React.FC = () => {
   );
 };
 
-export default ThankYouPage;
+export default TestingThankYouPage;
