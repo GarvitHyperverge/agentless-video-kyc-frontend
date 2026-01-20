@@ -15,6 +15,7 @@ import TestingLandingPage from './TestingPage/LandingPage/main';
 import TestingPanPage from './TestingPage/PanPage/main';
 import TestingSessionRecordingPage from './TestingPage/SessionRecording/main';
 import TestingOtpPage from './TestingPage/OtpPage/main';
+import TestingSelfiePage from './TestingPage/SelfiePage/main';
 
 // Wrap verification flow components with regular protection HOC
 const ProtectedSessionRecordingPage = withProtectedRoute(SessionRecordingPage);
@@ -54,7 +55,8 @@ function App() {
         <Route path="/testing/:temp_token" element={<TestingLandingPage />} />
         <Route path='/testing/session-recording' element={<TestingSessionRecordingPage />} />
         <Route path='/testing/pan' element={<TestingPanPage />} />
-        <Route path='/testing/otp' element={<TestingOtpPage />} />      
+        <Route path='/testing/otp' element={<TestingOtpPage />} />   
+        <Route path='/testing/selfie' element={<TestingSelfiePage />} />   
         
       </Routes>
     </BrowserRouter>

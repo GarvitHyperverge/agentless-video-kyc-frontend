@@ -2,7 +2,7 @@ import React from 'react';
 import { useSelfiePage } from './hook';
 import { Loader2, RotateCcw, X, CheckCircle2 } from 'lucide-react';
 
-const SelfiePage: React.FC = () => {
+const TestingSelfiePage: React.FC = () => {
   const {
     selfieImage,
     isCameraOpen,
@@ -130,4 +130,4 @@ const SelfiePage: React.FC = () => {
   );
 };
 
-export default SelfiePage;
+export default TestingSelfiePage;
