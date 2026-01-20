@@ -2,8 +2,8 @@ import React from 'react';
 import { useSessionDetail } from './hook';
 import { StatusBadge } from '../../components/StatusBadge';
 import { MatchIndicator } from '../../components/MatchIndicator';
-import { ImageLightbox } from '../../components/ImageLightbox';
 import { VideoPlayer } from '../../components/VideoPlayer';
+import { InfoItem, MediaBox, ValidationCard, PermToggle } from '../../components/SessionDetailComponents';
 import { setAuditorLoggedOut, getAuditorUsername } from '../../utils/auth';
 import { logoutAuditSession } from '../../services/api/auditSessions';
 
@@ -249,16 +249,16 @@ const SessionDetailPage: React.FC = () => {
           {/* Section 4: Validation Results */}
           <div className="grid md:grid-cols-2 gap-8">
             <ValidationCard 
-              title="Biometric Match" 
+              title="Face Match" 
               value={faceMatchResult.match_value} 
-              confidence={faceMatchResult.match_confidence} 
+              confidence={faceMatchResult.match_confidence as string | number | null} 
               action={faceMatchResult.action} 
               colorFn={getValidationColor}
             />
             <ValidationCard 
               title="Liveness Detection" 
               value={selfieValidation.live_face_value} 
-              confidence={selfieValidation.live_face_confidence} 
+              confidence={selfieValidation.live_face_confidence as string | number | null} 
               action={selfieValidation.action} 
               colorFn={getValidationColor}
             />
@@ -275,7 +275,7 @@ const SessionDetailPage: React.FC = () => {
                 <div className="flex gap-4">
                   <PermToggle label="Cam" active={sessionMetadata.camera_permission} />
                   <PermToggle label="Mic" active={sessionMetadata.microphone_permission} />
-                  <PermToggle label="Loc" active={sessionMetadata.location_permission} />
+                  <PermToggle label="Location" active={sessionMetadata.location_permission} />
                 </div>
               </div>
             </div>
@@ -304,53 +304,5 @@ const SessionDetailPage: React.FC = () => {
     </div>
   );
 };
-
-/* Internal Helper Components for Clean Theme */
-
-const InfoItem = ({ label, value, mono, light }: any) => (
-  <div className="flex flex-col gap-1">
-    <label className={`text-[10px] font-black uppercase tracking-widest ${light ? 'opacity-50 text-white' : 'text-slate-400'}`}>
-      {label}
-    </label>
-    <div className={`text-sm font-bold ${light ? 'text-white' : 'text-[#1a1a4a]'} ${mono ? 'font-mono break-all' : ''}`}>
-      {value}
-    </div>
-  </div>
-);
-
-const MediaBox = ({ label, src }: any) => (
-  <div className="space-y-3">
-    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</label>
-    <div className="rounded-2xl overflow-hidden border border-slate-100 shadow-sm bg-slate-50">
-      <ImageLightbox src={src} alt={label} className="w-full h-48 object-cover" />
-    </div>
-  </div>
-);
-
-const ValidationCard = ({ title, value, confidence, action, colorFn }: any) => (
-  <div className="bg-white border border-slate-200 rounded-[32px] p-8 shadow-sm">
-    <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-6">{title}</h3>
-    <div className="space-y-6">
-      <div className="flex justify-between items-end border-b border-slate-50 pb-4">
-        <span className="text-3xl font-black text-[#1a1a4a]">{confidence || '0'}%</span>
-        <span className={`text-xs font-black uppercase tracking-widest ${colorFn(value || '')}`}>
-          {value || 'N/A'}
-        </span>
-      </div>
-      <div className="flex justify-between text-xs font-bold">
-        <span className="text-slate-400 uppercase tracking-tighter">System Decision</span>
-        <span className="text-[#1a1a4a]">{action}</span>
-      </div>
-    </div>
-  </div>
-);
-
-const PermToggle = ({ label, active }: any) => (
-  <div className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase border ${
-    active ? 'bg-emerald-50 border-emerald-200 text-emerald-600' : 'bg-red-50 border-red-200 text-red-600'
-  }`}>
-    {label}
-  </div>
-);
 
 export default SessionDetailPage;

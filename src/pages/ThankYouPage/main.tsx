@@ -105,25 +105,6 @@ const ThankYouPage: React.FC = () => {
           </div>
         )}
       </div>
-
-      {/* Footer Utility */}
-      {isUploadComplete && (
-        <div className="pb-12 flex flex-col items-center gap-4 animate-in fade-in delay-500">
-          <button 
-            onClick={() => window.close()}
-            className="w-[80%] bg-[#5851eb] text-white py-4.5 rounded-2xl font-bold shadow-xl shadow-indigo-100 transition-all active:scale-[0.98] text-lg"
-          >
-            Close Window
-          </button>
-          
-          <div className="flex items-center gap-1.5 opacity-30 mt-2">
-            <div className="w-3 h-3 bg-emerald-500 rounded-full flex items-center justify-center">
-              <div className="w-1 h-1.5 border-r border-b border-white rotate-45 mb-0.5" />
-            </div>
-            <span className="text-[10px] font-black uppercase tracking-widest">powered by HyperVerge</span>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

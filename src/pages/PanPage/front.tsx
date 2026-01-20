@@ -36,7 +36,7 @@ const PanFront: React.FC<FrontProps> = ({ panImage, onNext, openUploadOptions, r
 
       <footer className="space-y-4">
         <button onClick={() => openUploadOptions('front')} className="w-full bg-[#5851eb] text-white font-bold py-4.5 rounded-xl">
-          Capture PAN Front
+          {panImage.url ? "Retake PAN" : "Capture PAN Front"}
         </button>
         <button disabled={!panImage.file} onClick={onNext} className={`w-full py-4.5 rounded-xl font-bold flex items-center justify-center gap-2 ${panImage.file ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-400'}`}>
           Continue<ChevronRight size={18} />

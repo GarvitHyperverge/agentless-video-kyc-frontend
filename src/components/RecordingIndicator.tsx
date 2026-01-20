@@ -34,12 +34,11 @@ const RecordingIndicator: React.FC = () => {
             autoPlay
             playsInline
             muted
-            // scale-x-[-1] mirrors the camera to match user expectation
-            className="w-full h-full object-cover scale-x-[-1]" 
+            className="w-full h-full object-cover" 
           />
         ) : (
           /* Fallback if stream is starting */
-          <div className="w-full h-full bg-slate-900 flex items-center justify-center" />
+          <div className="w-full h-full bg-slate-100 flex items-center justify-center" />
         )}
       </div>
     </div>

@@ -25,7 +25,7 @@ const OtpPage: React.FC = () => {
     <div className="flex flex-col h-screen bg-white font-sans text-slate-900 overflow-hidden">
       
       {/* 1. Full-Bleed Camera Preview Section */}
-      <div className="relative flex-1 bg-slate-900 overflow-hidden">
+      <div className="relative flex-1 bg-slate-100 overflow-hidden">
         {/* Camera/Video Logic */}
         {isCameraOpen || videoUrl ? (
           <div className="w-full h-full">

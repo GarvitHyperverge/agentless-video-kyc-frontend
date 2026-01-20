@@ -44,7 +44,7 @@ const SessionRecordingPage: React.FC = () => {
       </header>
 
       {/* 2. Main Frame - Corrected to capture entire container */}
-      <div className="relative flex-1 rounded-[24px] overflow-hidden bg-slate-900 shadow-sm border border-slate-100">
+      <div className="relative flex-1 rounded-[24px] overflow-hidden bg-slate-100 shadow-sm border border-slate-100">
         {recordingStream ? (
           <video
             ref={videoRef}
@@ -90,7 +90,7 @@ const SessionRecordingPage: React.FC = () => {
           Start video verification
         </button>
         
-        <div className="h-1 w-28 bg-slate-800 mx-auto rounded-full mt-2" />
+        <div className="h-1 w-28 bg-slate-200 mx-auto rounded-full mt-2" />
       </footer>
     </div>
   );

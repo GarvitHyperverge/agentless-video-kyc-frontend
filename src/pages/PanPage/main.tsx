@@ -114,7 +114,7 @@ const PanPage: React.FC = () => {
       {isCameraOpen && (
         <div className="fixed inset-0 z-[100] bg-black flex flex-col">
           <div className="relative flex-1">
-            <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" />
+            <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
 
             <button 
                 onClick={closeUploadOptions} 

@@ -23,7 +23,7 @@ const SelfiePage: React.FC = () => {
     <div className="flex flex-col h-screen bg-white font-sans text-slate-900 overflow-hidden">
       
       {/* 1. Full-Bleed Preview Section */}
-      <div className="relative flex-1 bg-slate-900 overflow-hidden">
+      <div className="relative flex-1 bg-slate-100 overflow-hidden">
         {isCameraOpen || selfieImage.imageUrl ? (
           <div className="w-full h-full">
             {selfieImage.imageUrl ? (
