@@ -11,6 +11,7 @@ import SessionDetailPage from './pages/AuditSessionDetail/main';
 import RecordingIndicator from './components/RecordingIndicator';
 import { withProtectedRoute } from './components/withProtectedRoute';
 import { withProtectedAuditRoute } from './components/withProtectedAuditRoute';
+import TestingLandingPage from './TestingPage/LandingPage/main';
 
 // Wrap verification flow components with regular protection HOC
 const ProtectedPanPage = withProtectedRoute(PanPage);
@@ -44,6 +45,9 @@ function App() {
         {/* Admin Audit Flow - Protected routes using HOC */}
         <Route path="/audit/sessions" element={<ProtectedSessionsListPage />} />
         <Route path="/audit/sessions/:sessionUid" element={<ProtectedSessionDetailPage />} />
+
+        {/* Testing */}
+        <Route path="/testing/:temp_token" element={<TestingLandingPage />} />
       </Routes>
     </BrowserRouter>
   );

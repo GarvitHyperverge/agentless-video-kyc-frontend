@@ -17,6 +17,7 @@ export const useLanding = () => {
   const navigate = useNavigate();
   const params = useParams<{ temp_token?: string }>();
   const [showPermissionsModal, setShowPermissionsModal] = useState(false);
+  const [showReadyModal, setShowReadyModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [activationError, setActivationError] = useState<string | null>(null);
   const [tempToken, setTempToken] = useState<string | null>(null);
@@ -120,7 +121,11 @@ export const useLanding = () => {
         }
         
         setShowPermissionsModal(false);
-        navigate('/verify/pan');
+        setShowReadyModal(true);       
+        setTimeout(() => {
+          setShowReadyModal(false);
+          navigate('/verify/pan');
+        }, 2500);
       } else {
         console.log(response);
       }
@@ -134,6 +139,7 @@ export const useLanding = () => {
   return {
     handleStartVerification,
     showPermissionsModal,
+    showReadyModal,
     handleCloseModal,
     handleConfirmPermissions,
     isLoading,

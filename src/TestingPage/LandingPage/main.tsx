@@ -4,11 +4,11 @@ import { useLanding } from './hook';
 import PermissionsModal from './modal';
 import ReadyModal from './readyModal';
 
-const LandingPage: React.FC = () => {
+const TestingLandingPage: React.FC = () => {
   const { 
     handleStartVerification, 
-    showPermissionsModal, 
-    showReadyModal,
+    showPermissionsModal,
+    showReadyModal, 
     handleCloseModal, 
     handleConfirmPermissions, 
     isLoading, 
@@ -108,4 +108,4 @@ const LandingPage: React.FC = () => {
   );
 };
 
-export default LandingPage;
+export default TestingLandingPage;
