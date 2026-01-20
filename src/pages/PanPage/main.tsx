@@ -115,14 +115,6 @@ const PanPage: React.FC = () => {
         <div className="fixed inset-0 z-[100] bg-black flex flex-col">
           <div className="relative flex-1">
             <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" />
-            
-            {/* Alignment Guide Overlay */}
-            <div className="absolute inset-0 flex items-center justify-center p-8 pointer-events-none">
-              <div className="w-full aspect-[1.58] border-2 border-white/20 rounded-3xl relative">
-                <div className="absolute -top-1 -left-1 w-10 h-10 border-t-4 border-l-4 border-[#5851eb] rounded-tl-2xl" />
-                <div className="absolute -bottom-1 -right-1 w-10 h-10 border-b-4 border-r-4 border-[#5851eb] rounded-br-2xl" />
-              </div>
-            </div>
 
             <button 
                 onClick={closeUploadOptions} 
