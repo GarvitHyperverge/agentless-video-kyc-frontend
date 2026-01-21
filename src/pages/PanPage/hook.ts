@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PanImages } from './type';
 import { uploadPanCardImages } from '../../services/api/panCard';
-import { useCameraCapture } from '../../utils/hooks/useCameraCapture';
+import { useBackCamera } from '../../utils/hooks/useBackCamera';
 import { createObjectUrl, revokeObjectUrl } from '../../utils/objectUrl';
 import { getStoredLocation } from '../../utils/location';
 import { watermarkImage } from '../../utils/watermark';
@@ -10,14 +10,16 @@ import { watermarkImage } from '../../utils/watermark';
 export const usePanPage = () => {
   const navigate = useNavigate();
   
-  // Use camera capture hook with shared stream (front camera)
+  // Use back camera ONLY for PAN capture (do not use shared stream)
   const {
     videoRef,
     isCameraReady,
     isCameraOpen,
     setIsCameraOpen,
+    startBackCamera,
+    stopBackCamera,
     capturePhoto: capturePhotoBase,
-  } = useCameraCapture();
+  } = useBackCamera();
 
   const [panImages, setPanImages] = useState<PanImages>({ 
     front: { file: null, url: null }, 
@@ -29,15 +31,21 @@ export const usePanPage = () => {
   const [cameraError, setCameraError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Open camera for document capture (uses shared stream - front camera)
-  const startCameraForCapture = () => {
+  // Open camera for document capture (tries back camera, falls back to shared stream)
+  const startCameraForCapture = async () => {
     setCameraError(null);
+    const stream = await startBackCamera();
+    if (!stream) {
+      setCameraError('Camera not available. Please use Gallery upload.');
+      return;
+    }
     setIsCameraOpen(true);
   };
 
   // Close camera modal
   const stopCamera = () => {
     setIsCameraOpen(false);
+    stopBackCamera();
   };
 
   /**
