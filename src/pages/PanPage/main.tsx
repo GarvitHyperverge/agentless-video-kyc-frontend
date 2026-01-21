@@ -18,6 +18,7 @@ const PanPage: React.FC = () => {
     isProcessing,
     videoRef,
     fileInputRef,
+    overlayGuideRef,
     openUploadOptions,
     selectUploadMode,
     closeUploadOptions,
@@ -116,9 +117,40 @@ const PanPage: React.FC = () => {
           <div className="relative flex-1">
             <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
 
+            {/* PAN Card Placement Guide Overlay */}
+            <div className="absolute inset-0 pointer-events-none">
+              {/* Top dark overlay */}
+              <div className="absolute top-0 left-0 right-0 bg-black/60" style={{ height: 'calc(50% - 27%)' }} />
+              {/* Bottom dark overlay */}
+              <div className="absolute bottom-0 left-0 right-0 bg-black/60" style={{ height: 'calc(50% - 27%)' }} />
+              {/* Left dark overlay */}
+              <div className="absolute top-0 bottom-0 left-0 bg-black/60" style={{ width: 'calc(50% - 42.5%)' }} />
+              {/* Right dark overlay */}
+              <div className="absolute top-0 bottom-0 right-0 bg-black/60" style={{ width: 'calc(50% - 42.5%)' }} />
+              
+              {/* Guide frame - centered */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div 
+                  ref={overlayGuideRef}
+                  className="relative w-[85%] max-w-md aspect-[85.6/53.98] border-4 border-white rounded-lg"
+                >
+                  {/* Corner indicators */}
+                  <div className="absolute -top-1 -left-1 w-8 h-8 border-t-4 border-l-4 border-white rounded-tl-lg" />
+                  <div className="absolute -top-1 -right-1 w-8 h-8 border-t-4 border-r-4 border-white rounded-tr-lg" />
+                  <div className="absolute -bottom-1 -left-1 w-8 h-8 border-b-4 border-l-4 border-white rounded-bl-lg" />
+                  <div className="absolute -bottom-1 -right-1 w-8 h-8 border-b-4 border-r-4 border-white rounded-br-lg" />
+                </div>
+              </div>
+              
+              {/* Instruction text */}
+              <div className="absolute bottom-32 left-0 right-0 text-center px-4">
+                <p className="text-white text-base font-semibold drop-shadow-lg">Align your PAN card within this frame</p>
+              </div>
+            </div>
+
             <button 
                 onClick={closeUploadOptions} 
-                className="absolute top-8 right-8 text-white bg-black/40 p-2 rounded-full backdrop-blur-md active:scale-90 transition-transform"
+                className="absolute top-8 right-8 text-white bg-black/40 p-2 rounded-full backdrop-blur-md active:scale-90 transition-transform z-10"
             >
               <X className="w-6 h-6" />
             </button>

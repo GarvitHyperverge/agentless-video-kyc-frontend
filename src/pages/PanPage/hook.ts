@@ -6,6 +6,7 @@ import { useBackCamera } from '../../utils/hooks/useBackCamera';
 import { createObjectUrl, revokeObjectUrl } from '../../utils/objectUrl';
 import { getStoredLocation } from '../../utils/location';
 import { watermarkImage } from '../../utils/watermark';
+import { captureCroppedPhotoFromVideo } from '../../utils/camera';
 
 export const usePanPage = () => {
   const navigate = useNavigate();
@@ -30,6 +31,7 @@ export const usePanPage = () => {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const overlayGuideRef = useRef<HTMLDivElement>(null);
 
   // Open camera for document capture (tries back camera, falls back to shared stream)
   const startCameraForCapture = async () => {
@@ -49,15 +51,15 @@ export const usePanPage = () => {
   };
 
   /**
-   * Capture full photo from video stream
+   * Capture cropped photo from video stream (only the guide area)
    */
   const capturePhoto = async () => {
-    if (!activeSide) return;
-
-    const blob = await capturePhotoBase();
-    if (!blob) return;
+    if (!activeSide || !videoRef.current || !overlayGuideRef.current) return;
 
     try {
+      // Capture only the area within the overlay guide
+      const blob = await captureCroppedPhotoFromVideo(videoRef.current, overlayGuideRef.current);
+      
       // Convert blob to File for storage
       const file = new File([blob], `pan_${activeSide}.jpg`, { type: 'image/jpeg' });
       // Create object URL for display (preview)
@@ -207,6 +209,7 @@ export const usePanPage = () => {
     uploadError,
     videoRef,
     fileInputRef,
+    overlayGuideRef,
     openUploadOptions,
     selectUploadMode,
     closeUploadOptions,
