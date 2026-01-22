@@ -19,7 +19,6 @@ export const usePanPage = () => {
     setIsCameraOpen,
     startBackCamera,
     stopBackCamera,
-    capturePhoto: capturePhotoBase,
   } = useBackCamera();
 
   const [panImages, setPanImages] = useState<PanImages>({ 

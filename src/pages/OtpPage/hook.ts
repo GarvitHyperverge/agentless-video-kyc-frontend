@@ -36,6 +36,7 @@ export const useOtpPage = () => {
   // Refs for recording (local recording for OTP video)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const timeLimitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Initialize OTP on component mount
   useEffect(() => {
@@ -55,8 +56,11 @@ export const useOtpPage = () => {
    * Start recording video and audio from the shared camera stream
    * Watermarks the stream in real-time before recording
    * Collects chunks of video data as they become available
+   * Automatically stops after 10 seconds
    */
   const startRecording = () => {
+    // Clear any previous error messages (e.g., timer exceeded)
+    setCameraError(null);
     const sharedStream = getSharedStream();
     if (!sharedStream) {
       setCameraError('Camera not available. Please refresh and try again.');
@@ -92,6 +96,18 @@ export const useOtpPage = () => {
     mediaRecorderRef.current = mediaRecorder;
     mediaRecorder.start();
     setRecordingStatus('recording');
+    
+    // Auto-stop after 10 seconds
+    timeLimitTimerRef.current = setTimeout(() => {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.stop();
+        mediaRecorderRef.current = null;
+      }
+      chunksRef.current = [];
+      setRecordingStatus('idle');
+      setCameraError('Recording exceeded 10 seconds. Please record again.');
+      setIsCameraOpen(true);
+    }, 10000);
   };
 
   /**
@@ -99,6 +115,12 @@ export const useOtpPage = () => {
    * Waits for recording to fully stop before creating blob to ensure all chunks are collected
    */
   const stopRecording = () => {
+    // Clear timer
+    if (timeLimitTimerRef.current) {
+      clearTimeout(timeLimitTimerRef.current);
+      timeLimitTimerRef.current = null;
+    }
+    
     if (mediaRecorderRef.current && recordingStatus === 'recording') {
       const mediaRecorder = mediaRecorderRef.current;
       
@@ -118,7 +140,7 @@ export const useOtpPage = () => {
         // Small delay to ensure all chunks are fully collected
         await new Promise(resolve => setTimeout(resolve, 200));
         
-        // Check if chunks were cleared (user clicked retake)
+        // Check if chunks were cleared (user clicked retake or time limit exceeded)
         if (chunksRef.current.length === 0) {
           return;
         }
@@ -161,6 +183,12 @@ export const useOtpPage = () => {
    * Cleans up previous video blob and URL to prevent memory leaks
    */
   const retakeVideo = async () => {
+    // Clear timer
+    if (timeLimitTimerRef.current) {
+      clearTimeout(timeLimitTimerRef.current);
+      timeLimitTimerRef.current = null;
+    }
+    
     // Stop any active recording
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       try {
@@ -233,6 +261,15 @@ export const useOtpPage = () => {
 
   // Determine if continue button should be enabled
   const canContinue = recordingStatus === 'recorded' && videoBlob !== null;
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (timeLimitTimerRef.current) {
+        clearTimeout(timeLimitTimerRef.current);
+      }
+    };
+  }, []);
 
   return {
     otp,

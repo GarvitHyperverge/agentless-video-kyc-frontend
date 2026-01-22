@@ -67,7 +67,7 @@ const OtpPage: React.FC = () => {
 
           {/* Recording Status Label */}
           <p className="text-slate-400 text-sm font-semibold mb-10">
-            {recordingStatus === 'recording' ? 'Recording in progress...' : 'Recording ends in 8s'}
+            {recordingStatus === 'recording' ? 'Recording... (10s limit)' : 'Recording limit: 10 seconds'}
           </p>
 
           {/* Action Buttons */}
